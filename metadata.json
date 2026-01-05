@@ -1,0 +1,8 @@
+{
+  "name": "Team DTC Workflow Manager",
+  "description": "A comprehensive workflow and task management system for Team DTC POD stores, featuring role-based boards, daily progress tracking, and AI-powered task reporting for Telegram integration.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
