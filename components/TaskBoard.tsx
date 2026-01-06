@@ -1,7 +1,10 @@
-
 import React from 'react';
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Task, TaskStatus, Role, Staff } from '../types';
-import { MoreVertical, Plus, Calendar, AlertCircle } from 'lucide-react';
+import { MoreVertical, Plus, Calendar, AlertCircle, GripVertical } from 'lucide-react';
 
 interface TaskBoardProps {
   role: Role;
@@ -13,8 +16,122 @@ interface TaskBoardProps {
   currentUser: Staff;
 }
 
+// Draggable Task Card Component
+const DraggableTaskCard: React.FC<{
+  task: Task;
+  staff: Staff | undefined;
+  canQuickChangeStatus: boolean;
+  onTaskClick: (task: Task) => void;
+  onUpdateStatus: (taskId: string, newStatus: TaskStatus) => void;
+}> = ({ task, staff, canQuickChangeStatus, onTaskClick, onUpdateStatus }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id, data: { task } });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 transition-all group hover:shadow-md ${isDragging ? 'shadow-2xl ring-2 ring-blue-400 z-50' : ''
+        }`}
+    >
+      <div className="flex justify-between items-start mb-3">
+        <div className="flex flex-wrap gap-2 flex-1 min-w-0">
+          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${task.priority === 'High' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'
+            }`}>
+            {task.priority}
+          </span>
+          {task.status === TaskStatus.BLOCKER && (
+            <span className="px-2 py-0.5 bg-orange-50 text-orange-600 rounded text-[10px] font-bold uppercase flex items-center gap-1 whitespace-nowrap">
+              <AlertCircle size={10} />
+              Blocked
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1 ml-2 shrink-0">
+          <button
+            {...attributes}
+            {...listeners}
+            className="p-1.5 hover:bg-slate-100 rounded cursor-grab active:cursor-grabbing text-slate-400 hover:text-blue-600 transition-colors"
+            onClick={(e) => e.stopPropagation()}
+            title="Drag to move"
+          >
+            <GripVertical size={16} />
+          </button>
+          <div onClick={(e) => e.stopPropagation()}>
+            <select
+              disabled={!canQuickChangeStatus}
+              className="text-[10px] bg-slate-100 border border-slate-300 rounded p-1.5 outline-none font-bold text-slate-900 cursor-pointer hover:bg-slate-200 transition-colors shadow-sm disabled:opacity-50"
+              value={task.status}
+              onChange={(e) => onUpdateStatus(task.id, e.target.value as TaskStatus)}
+            >
+              {Object.values(TaskStatus).map(s => (
+                <option key={s} value={s}>{s.replace('_', ' ')}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div onClick={() => onTaskClick(task)} className="cursor-pointer">
+        <h4 className="font-bold text-slate-800 leading-tight mb-2 group-hover:text-blue-600 transition-colors">{task.title}</h4>
+        <p className="text-xs text-slate-500 line-clamp-2 mb-4">{task.description}</p>
+
+        <div className="flex items-center justify-between mt-auto">
+          <div className="flex items-center -space-x-2">
+            <img
+              src={staff?.avatar}
+              className="w-7 h-7 rounded-full border-2 border-white ring-1 ring-slate-100 shadow-sm"
+              title={staff?.name}
+              alt={staff?.name}
+            />
+          </div>
+          <div className="text-[10px] font-bold text-slate-600 uppercase">{staff?.name}</div>
+        </div>
+
+        <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-slate-500">
+            <Calendar size={12} className={task.status === TaskStatus.OVERDUE ? 'text-red-500' : ''} />
+            <span className={`text-[10px] font-semibold ${task.status === TaskStatus.OVERDUE ? 'text-red-500 font-bold' : ''}`}>
+              {new Date(task.deadline).toLocaleDateString()}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-16 bg-slate-100 rounded-full h-1">
+              <div className={`h-1 rounded-full ${task.status === TaskStatus.BLOCKER ? 'bg-orange-400' :
+                task.status === TaskStatus.OVERDUE ? 'bg-red-500' : 'bg-blue-500'
+                }`} style={{ width: `${task.progress}%` }}></div>
+            </div>
+            <span className="text-[10px] font-bold text-slate-500">{task.progress}%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const TaskBoard: React.FC<TaskBoardProps> = ({ role, tasks, onUpdateStatus, staffMembers, onTaskClick, onNewTaskClick, currentUser }) => {
   const isManager = currentUser.role === Role.MANAGER;
+  const [activeId, setActiveId] = React.useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 0, // Start drag immediately for testing
+      },
+    })
+  );
 
   const columns = [
     { title: 'To Do', status: TaskStatus.TODO, color: 'slate' },
@@ -36,118 +153,127 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ role, tasks, onUpdateStatus, staf
     }
   };
 
+  const handleDragStart = (event: DragStartEvent) => {
+    console.log('🎯 Drag started:', event.active.id);
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    console.log('🎯 Drag ended:', { active: active.id, over: over?.id });
+    setActiveId(null);
+
+    if (!over) {
+      console.log('⚠️ No drop target');
+      return;
+    }
+
+    const taskId = active.id as string;
+    const task = tasks.find(t => t.id === taskId);
+
+    if (!task) return;
+
+    const overTask = tasks.find(t => t.id === over.id);
+    if (overTask && overTask.status !== task.status) {
+      onUpdateStatus(taskId, overTask.status);
+      return;
+    }
+
+    const targetColumn = columns.find(col => `column-${col.status}` === over.id);
+    if (targetColumn && task.status !== targetColumn.status) {
+      onUpdateStatus(taskId, targetColumn.status);
+    }
+  };
+
+  const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
+
   return (
-    <div className="h-full flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">{role} Workflow</h2>
-          <p className="text-slate-500">Manage tasks and track production pipeline for {role} team.</p>
-        </div>
-        {isManager && (
-          <button 
-            onClick={() => onNewTaskClick(role)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
-          >
-            <Plus size={20} />
-            New Task
-          </button>
-        )}
-      </div>
-
-      <div className="flex-1 flex gap-6 overflow-x-auto pb-4 custom-scrollbar">
-        {columns.map(column => (
-          <div key={column.status} className="w-80 shrink-0 flex flex-col gap-4">
-            <div className="flex items-center justify-between px-2">
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${getStatusColor(column.color)}`}></div>
-                <h3 className="font-bold text-slate-700">{column.title}</h3>
-                <span className="bg-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded-full font-bold">
-                  {roleTasks.filter(t => t.status === column.status).length}
-                </span>
-              </div>
-              <button className="text-slate-400 hover:text-slate-600">
-                <MoreVertical size={18} />
-              </button>
-            </div>
-
-            <div className="flex-1 flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
-              {roleTasks.filter(t => t.status === column.status).map(task => {
-                const staff = staffMembers.find(s => s.id === task.assignedTo);
-                const canQuickChangeStatus = isManager || currentUser.id === task.assignedTo;
-
-                return (
-                  <div 
-                    key={task.id}
-                    onClick={() => onTaskClick(task)}
-                    className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 transition-all cursor-pointer group hover:shadow-md"
-                  >
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex flex-wrap gap-2 flex-1 min-w-0">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${
-                          task.priority === 'High' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'
-                        }`}>
-                          {task.priority}
-                        </span>
-                        {task.status === TaskStatus.BLOCKER && (
-                          <span className="px-2 py-0.5 bg-orange-50 text-orange-600 rounded text-[10px] font-bold uppercase flex items-center gap-1 whitespace-nowrap">
-                            <AlertCircle size={10} />
-                            Blocked
-                          </span>
-                        )}
-                      </div>
-                      <div className="ml-2 shrink-0" onClick={e => e.stopPropagation()}>
-                         <select 
-                            disabled={!canQuickChangeStatus}
-                            className="text-[10px] bg-slate-100 border border-slate-300 rounded p-1.5 outline-none font-bold text-slate-900 cursor-pointer hover:bg-slate-200 transition-colors shadow-sm disabled:opacity-50"
-                            value={task.status}
-                            onChange={(e) => onUpdateStatus(task.id, e.target.value as TaskStatus)}
-                         >
-                            {Object.values(TaskStatus).map(s => (
-                              <option key={s} value={s}>{s.replace('_', ' ')}</option>
-                            ))}
-                         </select>
-                      </div>
-                    </div>
-
-                    <h4 className="font-bold text-slate-800 leading-tight mb-2 group-hover:text-blue-600 transition-colors">{task.title}</h4>
-                    <p className="text-xs text-slate-500 line-clamp-2 mb-4">{task.description}</p>
-                    
-                    <div className="flex items-center justify-between mt-auto">
-                      <div className="flex items-center -space-x-2">
-                        <img 
-                          src={staff?.avatar} 
-                          className="w-7 h-7 rounded-full border-2 border-white ring-1 ring-slate-100 shadow-sm" 
-                          title={staff?.name}
-                        />
-                      </div>
-                      <div className="text-[10px] font-bold text-slate-600 uppercase">{staff?.name}</div>
-                    </div>
-
-                    <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-slate-500">
-                        <Calendar size={12} className={task.status === TaskStatus.OVERDUE ? 'text-red-500' : ''} />
-                        <span className={`text-[10px] font-semibold ${task.status === TaskStatus.OVERDUE ? 'text-red-500 font-bold' : ''}`}>
-                          {new Date(task.deadline).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 bg-slate-100 rounded-full h-1">
-                          <div className={`h-1 rounded-full ${
-                            task.status === TaskStatus.BLOCKER ? 'bg-orange-400' : 
-                            task.status === TaskStatus.OVERDUE ? 'bg-red-500' : 'bg-blue-500'
-                          }`} style={{ width: `${task.progress}%` }}></div>
-                        </div>
-                        <span className="text-[10px] font-bold text-slate-500">{task.progress}%</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="h-full flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800">{role} Workflow</h2>
+            <p className="text-slate-500">Manage tasks and track production pipeline for {role} team.</p>
           </div>
-        ))}
+          {isManager && (
+            <button
+              onClick={() => onNewTaskClick(role)}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
+            >
+              <Plus size={20} />
+              New Task
+            </button>
+          )}
+        </div>
+
+        <div className="flex-1 flex gap-6 overflow-x-auto pb-4 custom-scrollbar">
+          {columns.map(column => {
+            const columnTasks = roleTasks.filter(t => t.status === column.status);
+
+            return (
+              <div key={column.status} className="w-80 shrink-0 flex flex-col gap-4">
+                <div className="flex items-center justify-between px-2">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${getStatusColor(column.color)}`}></div>
+                    <h3 className="font-bold text-slate-700">{column.title}</h3>
+                    <span className="bg-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded-full font-bold">
+                      {columnTasks.length}
+                    </span>
+                  </div>
+                  <button className="text-slate-400 hover:text-slate-600">
+                    <MoreVertical size={18} />
+                  </button>
+                </div>
+
+                <SortableContext
+                  items={columnTasks.map(t => t.id)}
+                  strategy={verticalListSortingStrategy}
+                  id={`column-${column.status}`}
+                >
+                  <div
+                    className="flex-1 flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1 min-h-[200px] p-2 rounded-xl transition-colors"
+                    style={{
+                      backgroundColor: activeId && activeTask?.status !== column.status ? 'rgba(59, 130, 246, 0.05)' : 'transparent'
+                    }}
+                  >
+                    {columnTasks.map(task => {
+                      const staff = staffMembers.find(s => s.id === task.assignedTo);
+                      const canQuickChangeStatus = isManager || currentUser.id === task.assignedTo;
+
+                      return (
+                        <DraggableTaskCard
+                          key={task.id}
+                          task={task}
+                          staff={staff}
+                          canQuickChangeStatus={canQuickChangeStatus}
+                          onTaskClick={onTaskClick}
+                          onUpdateStatus={onUpdateStatus}
+                        />
+                      );
+                    })}
+                  </div>
+                </SortableContext>
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
+
+      <DragOverlay>
+        {activeTask ? (
+          <div className="bg-white p-4 rounded-2xl border-2 border-blue-400 shadow-2xl w-80 opacity-90">
+            <h4 className="font-bold text-slate-800">{activeTask.title}</h4>
+            <p className="text-xs text-slate-500 mt-2 line-clamp-2">{activeTask.description}</p>
+            <div className="mt-2 text-[10px] text-slate-400">Dragging...</div>
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 };
 

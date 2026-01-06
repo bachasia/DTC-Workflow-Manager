@@ -8,10 +8,10 @@ export enum TaskStatus {
 }
 
 export enum Role {
-  MANAGER = 'Manager',
-  CS = 'Customer Service',
-  SELLER = 'Seller',
-  DESIGNER = 'Designer'
+  MANAGER = 'MANAGER',
+  CS = 'CS',
+  SELLER = 'SELLER',
+  DESIGNER = 'DESIGNER'
 }
 
 export interface Staff {

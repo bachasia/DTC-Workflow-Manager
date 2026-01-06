@@ -1,0 +1,165 @@
+// Prisma Schema for DTC Workflow Manager
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model - Staff members with authentication
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // Hashed with bcrypt
+  name      String
+  role      Role
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  createdTasks  Task[]         @relation("TaskCreator")
+  assignedTasks Task[]         @relation("TaskAssignee")
+  dailyReports  DailyReport[]
+  notifications LarkNotification[]
+
+  @@index([email])
+  @@index([role])
+}
+
+// Task model - Main task management
+model Task {
+  id          String     @id @default(cuid())
+  title       String
+  purpose     String     // Mục đích
+  description String     @db.Text
+  role        Role       // Department role
+  status      TaskStatus @default(TODO)
+  priority    Priority   @default(MEDIUM)
+  progress    Int        @default(0) // 0-100
+  deadline    DateTime
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Blocker fields
+  blockerReason    String?
+  blockerRelatedTo String?
+
+  // Relations
+  assignedToId String
+  assignedTo   User   @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  createdById  String
+  createdBy    User   @relation("TaskCreator", fields: [createdById], references: [id])
+
+  updateLogs    UpdateLog[]
+  notifications LarkNotification[]
+
+  @@index([assignedToId])
+  @@index([createdById])
+  @@index([status])
+  @@index([deadline])
+  @@index([role])
+}
+
+// Update Log - Task history tracking
+model UpdateLog {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  field     String
+  oldValue  String   @db.Text
+  newValue  String   @db.Text
+  details   String?  @db.Text
+  timestamp DateTime @default(now())
+
+  @@index([taskId])
+  @@index([timestamp])
+}
+
+// Daily Report - Staff daily submissions
+model DailyReport {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  date      DateTime @db.Date
+  content   String   @db.Text
+  
+  // JSON fields for completed tasks and analytics
+  completedTasks Json // Array of task IDs
+  analytics      Json? // AI-generated analytics
+  
+  // Lark Base sync status
+  syncedToLark   Boolean  @default(false)
+  larkRecordId   String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+}
+
+// Lark Notification - Queue and history
+model LarkNotification {
+  id      String           @id @default(cuid())
+  type    NotificationType
+  message String           @db.Text
+  
+  // Recipients
+  userId String?
+  user   User?  @relation(fields: [userId], references: [id])
+  
+  // Related task (optional)
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  // Delivery status
+  sent      Boolean   @default(false)
+  sentAt    DateTime?
+  error     String?   @db.Text
+  
+  // Scheduling
+  scheduledFor DateTime?
+  
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([taskId])
+  @@index([sent])
+  @@index([scheduledFor])
+}
+
+// Enums
+enum Role {
+  MANAGER
+  CS
+  SELLER
+  DESIGNER
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  BLOCKER
+  DONE
+  OVERDUE
+}
+
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_REMINDER
+  DEADLINE_APPROACHING
+  STATUS_CHANGED
+  DAILY_REPORT_REMINDER
+  TASK_OVERDUE
+}

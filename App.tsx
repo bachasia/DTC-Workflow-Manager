@@ -1,5 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
+import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import Login from './src/components/Login';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import TaskBoard from './components/TaskBoard';
@@ -8,188 +9,181 @@ import TaskModal from './components/TaskModal';
 import NewTaskModal from './components/NewTaskModal';
 import CSDailyChecklist from './components/CSDailyChecklist';
 import DailySummaryModal from './components/DailySummaryModal';
-import { INITIAL_TASKS, STAFF_LIST, CS_DAILY_TEMPLATES } from './constants';
-import { Task, TaskStatus, Role, UpdateLog, DailyTaskTemplate, Staff } from './types';
-import { User, ShieldCheck } from 'lucide-react';
+import { CS_DAILY_TEMPLATES } from './constants';
+import { Task, TaskStatus, Role, UpdateLog, Staff } from './types';
+import { api } from './src/services/api';
+import { Loader2 } from 'lucide-react';
 
-const App: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<Staff | null>(null);
+const AppContent: React.FC = () => {
+  const { user, loading: authLoading, logout } = useAuth();
   const [activeView, setActiveView] = useState('dashboard');
-  const [tasks, setTasks] = useState<Task[]>(() => {
-    const savedTasks = localStorage.getItem('dtc_workflow_tasks');
-    if (savedTasks) {
-      try {
-        return JSON.parse(savedTasks);
-      } catch (e) {
-        return INITIAL_TASKS;
-      }
-    }
-    return INITIAL_TASKS;
-  });
-  
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [staffList, setStaffList] = useState<Staff[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [newTaskRole, setNewTaskRole] = useState<Role>(Role.DESIGNER);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Persistence
+  // Fetch initial data
   useEffect(() => {
-    localStorage.setItem('dtc_workflow_tasks', JSON.stringify(tasks));
-  }, [tasks]);
+    if (user) {
+      fetchData();
+    }
+  }, [user]);
 
-  // Automatic Overdue Checker
-  useEffect(() => {
-    const checkOverdueTasks = () => {
-      const now = new Date();
-      setTasks(prevTasks => {
-        let hasChanges = false;
-        const updatedTasks = prevTasks.map(task => {
-          // If deadline is passed AND not DONE AND not already OVERDUE
-          if (
-            task.status !== TaskStatus.DONE && 
-            task.status !== TaskStatus.OVERDUE && 
-            new Date(task.deadline) < now
-          ) {
-            hasChanges = true;
-            return {
-              ...task,
-              status: TaskStatus.OVERDUE,
-              history: [
-                ...task.history,
-                {
-                  id: `system-overdue-${Date.now()}-${Math.random()}`,
-                  timestamp: now.toISOString(),
-                  field: 'Status',
-                  oldValue: task.status,
-                  newValue: TaskStatus.OVERDUE,
-                  details: 'System: Tự động chuyển sang Overdue do quá hạn deadline.'
-                }
-              ]
-            };
-          }
-          return task;
-        });
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        return hasChanges ? updatedTasks : prevTasks;
-      });
+      // Fetch tasks and users in parallel
+      const [tasksResponse, usersResponse] = await Promise.all([
+        api.tasks.list(),
+        api.users.list(),
+      ]);
+
+      setTasks(tasksResponse.tasks || []);
+      setStaffList(usersResponse.users || []);
+    } catch (err: any) {
+      console.error('Failed to fetch data:', err);
+      setError(err.response?.data?.error || 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async (taskId: string, newStatus: TaskStatus) => {
+    try {
+      const response = await api.tasks.updateStatus(taskId, newStatus);
+
+      // Update local state
+      setTasks(prev => prev.map(task =>
+        task.id === taskId ? response.task : task
+      ));
+
+      // Update selected task if it's the one being updated
+      if (selectedTask?.id === taskId) {
+        setSelectedTask(response.task);
+      }
+    } catch (err: any) {
+      console.error('Failed to update task status:', err);
+      alert(err.response?.data?.error || 'Failed to update task status');
+    }
+  };
+
+  const handleUpdateTask = async (updatedTask: Task, newLogs: UpdateLog[]) => {
+    try {
+      // Prepare payload with all required fields
+      const payload = {
+        title: updatedTask.title,
+        purpose: updatedTask.purpose,
+        description: updatedTask.description,
+        assignedToId: updatedTask.assignedTo,
+        status: updatedTask.status,
+        priority: updatedTask.priority,
+        progress: Number(updatedTask.progress), // Ensure it's a number
+        deadline: updatedTask.deadline,
+        blockerReason: updatedTask.blockerReason || undefined,
+        blockerRelatedTo: updatedTask.blockerRelatedTo || undefined,
+      };
+
+      console.log('Updating task with payload:', payload);
+
+      const response = await api.tasks.update(updatedTask.id, payload);
+
+      // Update local state
+      setTasks(prev => prev.map(task =>
+        task.id === updatedTask.id ? response.task : task
+      ));
+
+      setSelectedTask(response.task);
+    } catch (err: any) {
+      console.error('Failed to update task:', err);
+      alert(err.message || 'Failed to update task');
+    }
+  };
+
+  const handleAddTask = async (taskData: Omit<Task, 'id' | 'createdAt' | 'history'>) => {
+    try {
+      const response = await api.tasks.create(taskData);
+
+      // Add to local state
+      setTasks(prev => [...prev, response.task]);
+      setIsNewTaskModalOpen(false);
+    } catch (err: any) {
+      console.error('Failed to create task:', err);
+      alert(err.response?.data?.error || 'Failed to create task');
+    }
+  };
+
+  const handleActivateDailyTask = async (template: any, staffId: string) => {
+    const today = new Date();
+    const deadline = new Date(today);
+    deadline.setHours(23, 59, 59, 999);
+
+    const taskData = {
+      title: template.title,
+      purpose: `Vận hành daily store: ${template.category}`,
+      description: `Daily recurring task: ${template.category}`,
+      assignedToId: staffId,
+      role: Role.CS,
+      status: TaskStatus.IN_PROGRESS,
+      deadline: deadline.toISOString(),
+      priority: 'Medium' as const,
+      progress: 0,
     };
 
-    // Run immediately on mount
-    checkOverdueTasks();
+    await handleAddTask(taskData);
+  };
 
-    // Check every 60 seconds for real-time status shifts
-    const intervalId = setInterval(checkOverdueTasks, 60000);
-    return () => clearInterval(intervalId);
-  }, []);
-
-  // Auth Simulator: On first load, prompt to pick a user
-  if (!currentUser) {
+  // Show loading screen while checking auth
+  if (authLoading) {
     return (
-      <div className="fixed inset-0 bg-slate-900 flex items-center justify-center p-8 overflow-y-auto">
-        <div className="max-w-4xl w-full space-y-8 animate-in zoom-in-95">
-          <div className="text-center space-y-2">
-            <div className="w-16 h-16 bg-blue-600 rounded-2xl mx-auto flex items-center justify-center text-white text-3xl font-black italic shadow-2xl shadow-blue-500/20">DTC</div>
-            <h1 className="text-3xl font-bold text-white tracking-tight mt-6">Select Your Identity</h1>
-            <p className="text-slate-400">Welcome to DTC Teamflow. Please choose your role to enter the dashboard.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {STAFF_LIST.map(staff => (
-              <button
-                key={staff.id}
-                onClick={() => setCurrentUser(staff)}
-                className="bg-slate-800 border border-slate-700 p-6 rounded-3xl hover:border-blue-500 hover:bg-slate-750 transition-all group text-left flex items-center gap-4"
-              >
-                <div className="relative">
-                  <img src={staff.avatar} className="w-16 h-16 rounded-full border-2 border-slate-600 group-hover:border-blue-500 transition-colors" />
-                  {staff.role === Role.MANAGER && <ShieldCheck className="absolute -bottom-1 -right-1 text-blue-500 bg-slate-900 rounded-full" size={20} />}
-                </div>
-                <div>
-                  <h3 className="text-white font-bold group-hover:text-blue-400 transition-colors">{staff.name}</h3>
-                  <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">{staff.role}</p>
-                </div>
-              </button>
-            ))}
-          </div>
+      <div className="fixed inset-0 bg-slate-900 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto" />
+          <p className="text-slate-400">Loading...</p>
         </div>
       </div>
     );
   }
 
-  const handleUpdateStatus = (taskId: string, newStatus: TaskStatus) => {
-    setTasks(prev => prev.map(task => {
-      if (task.id === taskId) {
-        const log: UpdateLog = {
-          id: Math.random().toString(36).substr(2, 9),
-          timestamp: new Date().toISOString(),
-          field: 'Status',
-          oldValue: task.status,
-          newValue: newStatus
-        };
-        return { 
-          ...task, 
-          status: newStatus, 
-          progress: newStatus === TaskStatus.DONE ? 100 : task.progress,
-          history: [...task.history, log]
-        };
-      }
-      return task;
-    }));
-  };
+  // Show login if not authenticated
+  if (!user) {
+    return <Login />;
+  }
 
-  const handleUpdateTask = (updatedTask: Task, newLogs: UpdateLog[]) => {
-    setTasks(prev => prev.map(task => 
-      task.id === updatedTask.id 
-        ? { ...updatedTask, history: [...updatedTask.history, ...newLogs] } 
-        : task
-    ));
-    setSelectedTask(updatedTask);
-  };
+  // Show loading screen while fetching data
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto" />
+          <p className="text-slate-600">Loading workspace...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const handleAddTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'history'>) => {
-    const newTask: Task = {
-      ...taskData,
-      id: `t${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      history: [{
-        id: 'initial',
-        timestamp: new Date().toISOString(),
-        field: 'Task',
-        oldValue: 'None',
-        newValue: 'Created'
-      }]
-    };
-    setTasks(prev => [...prev, newTask]);
-  };
-
-  const handleActivateDailyTask = (template: DailyTaskTemplate, staffId: string) => {
-    const today = new Date();
-    const deadline = new Date(today);
-    deadline.setHours(23, 59, 59, 999);
-
-    const newTask: Task = {
-      id: `daily-${template.id}-${Date.now()}`,
-      title: template.title,
-      purpose: `Vận hành daily store: ${template.category}`,
-      description: `Daily recurring task: ${template.category}`,
-      assignedTo: staffId,
-      role: Role.CS,
-      status: TaskStatus.IN_PROGRESS,
-      deadline: deadline.toISOString(),
-      createdAt: today.toISOString(),
-      priority: 'Medium',
-      progress: 0,
-      history: [{
-        id: 'init',
-        timestamp: today.toISOString(),
-        field: 'System',
-        oldValue: 'Template',
-        newValue: `Activated by ${STAFF_LIST.find(s => s.id === staffId)?.name}`
-      }]
-    };
-
-    setTasks(prev => [...prev, newTask]);
-  };
+  // Show error if data fetch failed
+  if (error) {
+    return (
+      <div className="fixed inset-0 bg-slate-50 flex items-center justify-center p-8">
+        <div className="max-w-md w-full bg-white p-8 rounded-2xl border border-red-200 shadow-lg">
+          <h2 className="text-xl font-bold text-red-600 mb-4">Error Loading Data</h2>
+          <p className="text-slate-600 mb-6">{error}</p>
+          <button
+            onClick={fetchData}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const renderContent = () => {
     switch (activeView) {
@@ -197,63 +191,63 @@ const App: React.FC = () => {
         return <Dashboard tasks={tasks} />;
       case 'designer':
         return (
-          <TaskBoard 
-            role={Role.DESIGNER} 
-            tasks={tasks} 
-            onUpdateStatus={handleUpdateStatus} 
-            staffMembers={STAFF_LIST} 
+          <TaskBoard
+            role={Role.DESIGNER}
+            tasks={tasks}
+            onUpdateStatus={handleUpdateStatus}
+            staffMembers={staffList}
             onTaskClick={setSelectedTask}
             onNewTaskClick={(role) => {
-              if (currentUser.role === Role.MANAGER) {
+              if (user.role === Role.MANAGER) {
                 setNewTaskRole(role);
                 setIsNewTaskModalOpen(true);
               }
             }}
-            currentUser={currentUser}
+            currentUser={user}
           />
         );
       case 'seller':
         return (
-          <TaskBoard 
-            role={Role.SELLER} 
-            tasks={tasks} 
-            onUpdateStatus={handleUpdateStatus} 
-            staffMembers={STAFF_LIST} 
+          <TaskBoard
+            role={Role.SELLER}
+            tasks={tasks}
+            onUpdateStatus={handleUpdateStatus}
+            staffMembers={staffList}
             onTaskClick={setSelectedTask}
             onNewTaskClick={(role) => {
-              if (currentUser.role === Role.MANAGER) {
+              if (user.role === Role.MANAGER) {
                 setNewTaskRole(role);
                 setIsNewTaskModalOpen(true);
               }
             }}
-            currentUser={currentUser}
+            currentUser={user}
           />
         );
       case 'cs':
         return (
           <div className="flex flex-col lg:flex-row gap-8 h-full">
             <div className="flex-1 min-w-0">
-              <TaskBoard 
-                role={Role.CS} 
-                tasks={tasks} 
-                onUpdateStatus={handleUpdateStatus} 
-                staffMembers={STAFF_LIST} 
+              <TaskBoard
+                role={Role.CS}
+                tasks={tasks}
+                onUpdateStatus={handleUpdateStatus}
+                staffMembers={staffList}
                 onTaskClick={setSelectedTask}
                 onNewTaskClick={(role) => {
-                  if (currentUser.role === Role.MANAGER) {
+                  if (user.role === Role.MANAGER) {
                     setNewTaskRole(role);
                     setIsNewTaskModalOpen(true);
                   }
                 }}
-                currentUser={currentUser}
+                currentUser={user}
               />
             </div>
-            {currentUser.role === Role.MANAGER && (
+            {user.role === Role.MANAGER && (
               <div className="w-full lg:w-80 shrink-0 h-full">
-                <CSDailyChecklist 
+                <CSDailyChecklist
                   templates={CS_DAILY_TEMPLATES}
                   tasks={tasks}
-                  csStaff={STAFF_LIST.filter(s => s.role === Role.CS)}
+                  csStaff={staffList.filter(s => s.role === Role.CS)}
                   onActivateTask={handleActivateDailyTask}
                 />
               </div>
@@ -261,9 +255,9 @@ const App: React.FC = () => {
           </div>
         );
       case 'staff':
-        return currentUser.role === Role.MANAGER ? (
+        return user.role === Role.MANAGER ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {STAFF_LIST.map(staff => (
+            {staffList.map(staff => (
               <div key={staff.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
                 <img src={staff.avatar} className="w-16 h-16 rounded-full border border-slate-100 shadow-sm" />
                 <div>
@@ -275,51 +269,59 @@ const App: React.FC = () => {
           </div>
         ) : null;
       case 'reports':
-        return currentUser.role === Role.MANAGER ? <DailyReporter staffList={STAFF_LIST} tasks={tasks} /> : null;
+        return user.role === Role.MANAGER ? <DailyReporter staffList={staffList} tasks={tasks} /> : null;
       default:
         return <Dashboard tasks={tasks} />;
     }
   };
 
   return (
-    <Layout 
-      activeView={activeView} 
-      setActiveView={setActiveView} 
+    <Layout
+      activeView={activeView}
+      setActiveView={setActiveView}
       onOpenSummary={() => setIsSummaryOpen(true)}
-      currentUser={currentUser}
-      onUserLogout={() => setCurrentUser(null)}
+      currentUser={user}
+      onUserLogout={logout}
     >
       <div className="animate-in fade-in duration-500 h-full">
         {renderContent()}
       </div>
 
       {selectedTask && (
-        <TaskModal 
+        <TaskModal
           task={selectedTask}
           onClose={() => setSelectedTask(null)}
           onUpdateTask={handleUpdateTask}
-          staffMembers={STAFF_LIST}
-          currentUser={currentUser}
+          staffMembers={staffList}
+          currentUser={user}
         />
       )}
 
       {isNewTaskModalOpen && (
-        <NewTaskModal 
+        <NewTaskModal
           onClose={() => setIsNewTaskModalOpen(false)}
           onAdd={handleAddTask}
-          staffMembers={STAFF_LIST}
+          staffMembers={staffList}
           initialRole={newTaskRole}
         />
       )}
 
       {isSummaryOpen && (
-        <DailySummaryModal 
+        <DailySummaryModal
           tasks={tasks}
-          staffMembers={STAFF_LIST}
+          staffMembers={staffList}
           onClose={() => setIsSummaryOpen(false)}
         />
       )}
     </Layout>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 };
 

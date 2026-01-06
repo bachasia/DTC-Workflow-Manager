@@ -15,7 +15,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
   const [localTask, setLocalTask] = useState<Task>(task);
   const [logs, setLogs] = useState<UpdateLog[]>([]);
   const [currentDetails, setCurrentDetails] = useState<string>('');
-  
+
   const isManager = currentUser.role === Role.MANAGER;
   const isAssignedToCurrent = currentUser.id === localTask.assignedTo;
   const canEditMainFields = isManager;
@@ -39,8 +39,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newStatus = e.target.value as TaskStatus;
     addLog('Status', localTask.status, newStatus);
-    setLocalTask(prev => ({ 
-      ...prev, 
+    setLocalTask(prev => ({
+      ...prev,
       status: newStatus,
       progress: newStatus === TaskStatus.DONE ? 100 : prev.progress,
     }));
@@ -50,10 +50,10 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
     const newStaffId = e.target.value;
     const oldStaffName = staff?.name || 'Unknown';
     const newStaffName = staffMembers.find(s => s.id === newStaffId)?.name || 'Unknown';
-    
+
     addLog('Assigned To', oldStaffName, newStaffName);
-    setLocalTask(prev => ({ 
-      ...prev, 
+    setLocalTask(prev => ({
+      ...prev,
       assignedTo: newStaffId
     }));
   };
@@ -73,9 +73,9 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
     setLocalTask(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const finalLogs = [...logs];
-    
+
     if (localTask.progress !== task.progress) {
       finalLogs.push({
         id: Math.random().toString(36).substr(2, 9),
@@ -96,8 +96,14 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
       });
     }
 
-    onUpdateTask(localTask, finalLogs);
-    onClose();
+    try {
+      await onUpdateTask(localTask, finalLogs);
+      // Only close if update succeeds
+      onClose();
+    } catch (error) {
+      console.error('Failed to save task:', error);
+      // Modal stays open so user can see the error and retry
+    }
   };
 
   return (
@@ -106,9 +112,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
         {/* Header */}
         <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-3">
-            <span className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-              localTask.priority === 'High' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
-            }`}>
+            <span className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${localTask.priority === 'High' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+              }`}>
               {localTask.priority} Priority
             </span>
             {localTask.status === TaskStatus.BLOCKER && (
@@ -163,10 +168,10 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
                     <User size={16} className="text-slate-400" />
                     Assigned To
                   </label>
-                  
+
                   {isManager ? (
                     <div className="relative group">
-                      <select 
+                      <select
                         value={localTask.assignedTo}
                         onChange={handleAssigneeChange}
                         className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 outline-none hover:border-blue-300 focus:ring-2 focus:ring-blue-500 appearance-none transition-all shadow-sm"
@@ -196,7 +201,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
                     <AlertCircle size={16} className="text-slate-400" />
                     Status
                   </label>
-                  <select 
+                  <select
                     disabled={!canUpdateProgress}
                     value={localTask.status}
                     onChange={handleStatusChange}
@@ -218,7 +223,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
                   <div className="space-y-3">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-bold text-orange-600 uppercase">Reason for blocker</label>
-                      <textarea 
+                      <textarea
                         disabled={!canUpdateProgress}
                         value={localTask.blockerReason || ''}
                         onChange={(e) => handleBlockerUpdate('blockerReason', e.target.value)}
@@ -230,7 +235,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
                       <label className="text-[10px] font-bold text-orange-600 uppercase flex items-center gap-1">
                         <UserPlus size={12} /> Related Person (Người liên quan)
                       </label>
-                      <input 
+                      <input
                         disabled={!canUpdateProgress}
                         type="text"
                         value={localTask.blockerRelatedTo || ''}
@@ -259,7 +264,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
                     <Calendar size={16} className="text-slate-400" />
                     Extend Deadline (Gia hạn)
                   </label>
-                  <input 
+                  <input
                     disabled={!canEditMainFields}
                     type="date"
                     value={localTask.deadline.split('T')[0]}
@@ -276,11 +281,11 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
                     </label>
                     <span className="text-sm font-bold text-blue-600">{localTask.progress}%</span>
                   </div>
-                  <input 
+                  <input
                     disabled={!canUpdateProgress}
-                    type="range" 
-                    min="0" 
-                    max="100" 
+                    type="range"
+                    min="0"
+                    max="100"
                     value={localTask.progress}
                     onChange={handleProgressChange}
                     className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600 mt-3 disabled:cursor-not-allowed"
@@ -293,7 +298,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
                   <MessageSquareText size={16} className="text-blue-500" />
                   Chi tiết tiến độ / Khó khăn (Progress Details / Difficulties)
                 </label>
-                <textarea 
+                <textarea
                   disabled={!canUpdateProgress}
                   value={currentDetails}
                   onChange={(e) => setCurrentDetails(e.target.value)}
@@ -310,21 +315,27 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
                 Update History
               </h3>
               <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4">
-                {[...localTask.history].reverse().map((log) => (
-                  <div key={log.id} className="relative pl-5 border-l-2 border-slate-200 pb-4">
-                    <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-slate-300"></div>
-                    <p className="text-[10px] text-slate-400 mb-1">{new Date(log.timestamp).toLocaleString()}</p>
-                    <p className="text-xs font-bold text-slate-700">{log.field === 'Comment' ? 'Note Added' : `Changed ${log.field}`}</p>
-                    <div className="text-[10px] text-slate-500 mb-1">
-                      {log.oldValue} → {log.newValue}
-                    </div>
-                    {log.details && (
-                      <div className="mt-1.5 p-2 bg-white rounded-lg border border-slate-100 shadow-sm">
-                         <p className="text-[10px] text-slate-600 leading-relaxed italic">"{log.details}"</p>
-                      </div>
-                    )}
+                {(localTask.history || []).length === 0 ? (
+                  <div className="text-center py-8 text-slate-400">
+                    <p className="text-sm">No update history yet</p>
                   </div>
-                ))}
+                ) : (
+                  [...(localTask.history || [])].reverse().map((log) => (
+                    <div key={log.id} className="relative pl-5 border-l-2 border-slate-200 pb-4">
+                      <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-slate-300"></div>
+                      <p className="text-[10px] text-slate-400 mb-1">{new Date(log.timestamp).toLocaleString()}</p>
+                      <p className="text-xs font-bold text-slate-700">{log.field === 'Comment' ? 'Note Added' : `Changed ${log.field}`}</p>
+                      <div className="text-[10px] text-slate-500 mb-1">
+                        {log.oldValue} → {log.newValue}
+                      </div>
+                      {log.details && (
+                        <div className="mt-1.5 p-2 bg-white rounded-lg border border-slate-100 shadow-sm">
+                          <p className="text-[10px] text-slate-600 leading-relaxed italic">"{log.details}"</p>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
