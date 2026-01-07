@@ -107,14 +107,33 @@ const AppContent: React.FC = () => {
 
   const handleAddTask = async (taskData: Omit<Task, 'id' | 'createdAt' | 'history'>) => {
     try {
-      const response = await api.tasks.create(taskData);
+      // Build payload with explicit fields
+      const apiPayload = {
+        title: taskData.title,
+        purpose: taskData.purpose,
+        description: taskData.description || '',
+        assignedToId: taskData.assignedTo,
+        role: taskData.role,
+        priority: taskData.priority.toUpperCase(), // Convert to uppercase for backend enum
+        deadline: taskData.deadline,
+      };
+
+      console.log('Creating task with payload:', apiPayload);
+      const response = await api.tasks.create(apiPayload);
 
       // Add to local state
       setTasks(prev => [...prev, response.task]);
       setIsNewTaskModalOpen(false);
     } catch (err: any) {
       console.error('Failed to create task:', err);
-      alert(err.response?.data?.error || 'Failed to create task');
+      console.error('Error details:', err.response?.data);
+      console.error('Validation errors:', err.response?.data?.details);
+
+      const errorMsg = err.response?.data?.details
+        ? `Validation errors:\n${JSON.stringify(err.response.data.details, null, 2)}`
+        : err.message;
+
+      alert(`Failed to create task:\n${errorMsg}`);
     }
   };
 

@@ -58,8 +58,10 @@ const makeRequest = async (url: string, options: RequestInit = {}) => {
 // Helper to handle response
 const handleResponse = async (response: Response) => {
     if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Request failed' }));
-        throw new Error(error.error || `HTTP ${response.status}`);
+        const errorData = await response.json().catch(() => ({ error: 'Request failed' }));
+        const error: any = new Error(errorData.error || `HTTP ${response.status}`);
+        error.response = { data: errorData }; // Attach full error data
+        throw error;
     }
     return response.json();
 };

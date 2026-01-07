@@ -3,12 +3,12 @@ import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
 import { Task, TaskStatus, Role } from '../types';
 import { STAFF_LIST } from '../constants';
-import { 
-  CheckCircle2, 
-  Clock, 
-  AlertCircle, 
-  TrendingUp, 
-  ClipboardCheck, 
+import {
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  TrendingUp,
+  ClipboardCheck,
   ShieldAlert,
   ChevronRight,
   Target,
@@ -20,7 +20,7 @@ interface DashboardProps {
   tasks: Task[];
 }
 
-type FilterType = 'all' | TaskStatus.DONE | TaskStatus.BLOCKER | TaskStatus.OVERDUE;
+type FilterType = 'all' | TaskStatus.DONE | TaskStatus.IN_PROGRESS | TaskStatus.OVERDUE;
 
 const Dashboard: React.FC<DashboardProps> = ({ tasks }) => {
   const [selectedFilter, setSelectedFilter] = useState<FilterType | null>(null);
@@ -28,7 +28,7 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks }) => {
   const stats = [
     { id: 'all', label: 'Total Tasks', value: tasks.length, icon: ClipboardCheck, color: 'blue' },
     { id: TaskStatus.DONE, label: 'Completed', value: tasks.filter(t => t.status === TaskStatus.DONE).length, icon: CheckCircle2, color: 'green' },
-    { id: TaskStatus.BLOCKER, label: 'Blockers', value: tasks.filter(t => t.status === TaskStatus.BLOCKER).length, icon: ShieldAlert, color: 'orange' },
+    { id: TaskStatus.IN_PROGRESS, label: 'In Progress', value: tasks.filter(t => t.status === TaskStatus.IN_PROGRESS).length, icon: TrendingUp, color: 'orange' },
     { id: TaskStatus.OVERDUE, label: 'Overdue', value: tasks.filter(t => t.status === TaskStatus.OVERDUE).length, icon: AlertCircle, color: 'red' },
   ];
 
@@ -78,7 +78,7 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks }) => {
           <h1 className="text-2xl font-bold text-slate-800">Team DTC Performance</h1>
           <p className="text-slate-500">Real-time overview of current campaigns and store operations.</p>
         </div>
-        
+
         <div className="flex items-center gap-6 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
@@ -103,14 +103,13 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks }) => {
         {stats.map((stat) => {
           const isActive = selectedFilter === stat.id;
           return (
-            <button 
-              key={stat.id} 
+            <button
+              key={stat.id}
               onClick={() => setSelectedFilter(isActive ? null : stat.id as FilterType)}
-              className={`bg-white p-6 rounded-2xl border transition-all flex items-center justify-between text-left group ${
-                isActive 
-                ? 'border-blue-500 shadow-lg shadow-blue-100 ring-2 ring-blue-500/20' 
+              className={`bg-white p-6 rounded-2xl border transition-all flex items-center justify-between text-left group ${isActive
+                ? 'border-blue-500 shadow-lg shadow-blue-100 ring-2 ring-blue-500/20'
                 : 'border-slate-200 shadow-sm hover:border-slate-300 hover:translate-y-[-2px]'
-              }`}
+                }`}
             >
               <div>
                 <p className="text-slate-500 text-sm font-medium">{stat.label}</p>
@@ -135,7 +134,7 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks }) => {
               <BarChart3 size={16} />
               Detailed Breakdown: {stats.find(s => s.id === selectedFilter)?.label}
             </h3>
-            <button 
+            <button
               onClick={() => setSelectedFilter(null)}
               className="text-blue-600 hover:text-blue-800 text-xs font-bold uppercase"
             >
@@ -180,11 +179,10 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks }) => {
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="inline-flex flex-col items-end">
-                            <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase mb-1.5 ${
-                              task.status === TaskStatus.DONE ? 'bg-green-100 text-green-700' :
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase mb-1.5 ${task.status === TaskStatus.DONE ? 'bg-green-100 text-green-700' :
                               task.status === TaskStatus.BLOCKER ? 'bg-orange-100 text-orange-700' :
-                              task.status === TaskStatus.OVERDUE ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'
-                            }`}>
+                                task.status === TaskStatus.OVERDUE ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'
+                              }`}>
                               {task.status.replace('_', ' ')}
                             </span>
                             <div className="flex items-center gap-2">
@@ -218,7 +216,7 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks }) => {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                <Tooltip 
+                <Tooltip
                   cursor={{ fill: '#f8fafc' }}
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '12px' }}
                 />
@@ -231,15 +229,15 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks }) => {
         {/* Team Members Status */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
           <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-             <BarChart3 size={20} className="text-indigo-500" />
-             Staff Performance
+            <BarChart3 size={20} className="text-indigo-500" />
+            Staff Performance
           </h3>
           <div className="space-y-5 flex-1 overflow-y-auto custom-scrollbar pr-1">
             {STAFF_LIST.filter(s => s.role !== Role.MANAGER).map(staff => {
               const staffTasks = tasks.filter(t => t.assignedTo === staff.id);
               const done = staffTasks.filter(t => t.status === TaskStatus.DONE).length;
               const progress = staffTasks.length ? (done / staffTasks.length) * 100 : 0;
-              
+
               return (
                 <div key={staff.id} className="group">
                   <div className="flex items-center gap-3 mb-2">
@@ -250,8 +248,8 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks }) => {
                         <span className="text-[10px] font-bold text-slate-400">{done}/{staffTasks.length} tasks</span>
                       </div>
                       <div className="w-full bg-slate-100 rounded-full h-1.5 mt-1.5 overflow-hidden">
-                        <div 
-                          className="bg-indigo-500 h-1.5 rounded-full transition-all duration-1000" 
+                        <div
+                          className="bg-indigo-500 h-1.5 rounded-full transition-all duration-1000"
                           style={{ width: `${progress}%` }}
                         ></div>
                       </div>
@@ -262,7 +260,7 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks }) => {
             })}
           </div>
           <div className="mt-6 pt-4 border-t border-slate-50">
-             <p className="text-[10px] text-slate-400 font-bold uppercase text-center">Data updates automatically</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase text-center">Data updates automatically</p>
           </div>
         </div>
       </div>
@@ -306,11 +304,10 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks }) => {
                       </div>
                     </td>
                     <td className="py-4">
-                       <span className={`px-2 py-1 rounded-lg text-[9px] font-bold uppercase ${
-                         task.status === TaskStatus.BLOCKER ? 'bg-orange-100 text-orange-600' : 'bg-red-50 text-red-600'
-                       }`}>
-                         {task.status.replace('_', ' ')}
-                       </span>
+                      <span className={`px-2 py-1 rounded-lg text-[9px] font-bold uppercase ${task.status === TaskStatus.BLOCKER ? 'bg-orange-100 text-orange-600' : 'bg-red-50 text-red-600'
+                        }`}>
+                        {task.status.replace('_', ' ')}
+                      </span>
                     </td>
                     <td className="py-4 text-xs text-slate-500">
                       {new Date(task.deadline).toLocaleDateString()}

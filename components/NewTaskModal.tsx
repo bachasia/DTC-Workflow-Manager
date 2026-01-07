@@ -14,7 +14,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ onClose, onAdd, staffMember
   const [role, setRole] = useState<Role>(initialRole || Role.DESIGNER);
   // Filter valid staff for the selected role
   const filteredStaff = staffMembers.filter(s => s.role === role);
-  
+
   const [title, setTitle] = useState('');
   const [purpose, setPurpose] = useState('');
   const [description, setDescription] = useState('');
@@ -34,6 +34,10 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ onClose, onAdd, staffMember
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Convert date-only string to ISO datetime with end of day time
+    const deadlineDate = new Date(deadline + 'T23:59:59');
+
     onAdd({
       title,
       purpose,
@@ -42,7 +46,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ onClose, onAdd, staffMember
       role,
       status: TaskStatus.TODO,
       priority,
-      deadline: new Date(deadline).toISOString(),
+      deadline: deadlineDate.toISOString(),
       progress: 0,
     });
     onClose();
@@ -61,8 +65,9 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ onClose, onAdd, staffMember
         <div className="flex-1 overflow-y-auto p-8 space-y-5 custom-scrollbar">
           <div className="space-y-2">
             <label className="text-sm font-bold text-slate-700">Task Title</label>
-            <input 
+            <input
               required
+              autoComplete="off"
               value={title}
               onChange={e => setTitle(e.target.value)}
               className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 placeholder-slate-400"
@@ -75,8 +80,9 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ onClose, onAdd, staffMember
               <Target size={14} className="text-blue-500" />
               Mục đích (Purpose)
             </label>
-            <input 
+            <input
               required
+              autoComplete="off"
               value={purpose}
               onChange={e => setPurpose(e.target.value)}
               className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 placeholder-slate-400"
@@ -86,7 +92,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ onClose, onAdd, staffMember
 
           <div className="space-y-2">
             <label className="text-sm font-bold text-slate-700">Description</label>
-            <textarea 
+            <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
               className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none h-24 text-slate-900 placeholder-slate-400"
@@ -97,7 +103,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ onClose, onAdd, staffMember
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-700">Role</label>
-              <select 
+              <select
                 value={role}
                 onChange={e => setRole(e.target.value as Role)}
                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-slate-900"
@@ -109,7 +115,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ onClose, onAdd, staffMember
             </div>
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-700">Assign To</label>
-              <select 
+              <select
                 required
                 value={assignedTo}
                 onChange={e => setAssignedTo(e.target.value)}
@@ -129,7 +135,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ onClose, onAdd, staffMember
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-700">Priority</label>
-              <select 
+              <select
                 value={priority}
                 onChange={e => setPriority(e.target.value as any)}
                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-900"
@@ -141,7 +147,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ onClose, onAdd, staffMember
             </div>
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-700">Deadline</label>
-              <input 
+              <input
                 type="date"
                 required
                 value={deadline}

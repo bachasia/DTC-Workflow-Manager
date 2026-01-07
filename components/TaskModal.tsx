@@ -154,7 +154,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
 
               <div className="space-y-3">
                 <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                  <Target size={16} className="text-blue-500" />
+                  <Target size={16} className="text-blue-500 flex-shrink-0" />
                   Mục đích (Purpose)
                 </label>
                 <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 text-sm text-blue-900 font-medium leading-relaxed">
@@ -165,7 +165,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-3">
                   <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                    <User size={16} className="text-slate-400" />
+                    <User size={16} className="text-slate-400 flex-shrink-0" />
                     Assigned To
                   </label>
 
@@ -198,7 +198,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
 
                 <div className="space-y-3">
                   <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                    <AlertCircle size={16} className="text-slate-400" />
+                    <AlertCircle size={16} className="text-slate-400 flex-shrink-0" />
                     Status
                   </label>
                   <select
@@ -208,7 +208,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
                     className="w-full p-3 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-slate-700 outline-none transition-all shadow-sm disabled:bg-slate-50 disabled:text-slate-400"
                   >
                     {Object.values(TaskStatus).map(s => (
-                      <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                      <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
                     ))}
                   </select>
                 </div>
@@ -250,7 +250,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
 
               <div className="space-y-3">
                 <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                  <AlignLeft size={16} className="text-slate-400" />
+                  <AlignLeft size={16} className="text-slate-400 flex-shrink-0" />
                   Description
                 </label>
                 <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100 italic">
@@ -309,28 +309,32 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
             </div>
 
             {/* History Col */}
-            <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200 flex flex-col h-full min-h-[400px]">
-              <h3 className="flex items-center gap-2 font-bold text-slate-800 mb-4 text-sm">
+            <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-2xl p-6 border border-slate-200 flex flex-col h-full min-h-[400px] shadow-sm">
+              <h3 className="flex items-center gap-2 font-bold text-slate-800 mb-5 text-sm pb-3 border-b border-slate-200">
                 <History size={16} className="text-blue-500" />
                 Update History
               </h3>
-              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4">
+              <div className="flex-1 overflow-y-auto space-y-3 max-h-[500px] pr-2" style={{
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#cbd5e1 transparent'
+              }}>
                 {(localTask.history || []).length === 0 ? (
-                  <div className="text-center py-8 text-slate-400">
-                    <p className="text-sm">No update history yet</p>
+                  <div className="text-center py-12 text-slate-400">
+                    <History size={32} className="mx-auto mb-2 opacity-30" />
+                    <p className="text-sm font-medium">No update history yet</p>
                   </div>
                 ) : (
-                  [...(localTask.history || [])].reverse().map((log) => (
-                    <div key={log.id} className="relative pl-5 border-l-2 border-slate-200 pb-4">
-                      <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-slate-300"></div>
-                      <p className="text-[10px] text-slate-400 mb-1">{new Date(log.timestamp).toLocaleString()}</p>
-                      <p className="text-xs font-bold text-slate-700">{log.field === 'Comment' ? 'Note Added' : `Changed ${log.field}`}</p>
-                      <div className="text-[10px] text-slate-500 mb-1">
-                        {log.oldValue} → {log.newValue}
+                  [...(localTask.history || [])].reverse().map((log, index) => (
+                    <div key={log.id} className="relative pl-4 border-l-2 border-slate-300 pb-3 last:pb-0 hover:border-blue-400 transition-colors group">
+                      <div className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-blue-500 ring-2 ring-white shadow-sm group-hover:scale-125 transition-transform"></div>
+                      <p className="text-[10px] text-slate-400 mb-1.5 font-medium">{new Date(log.timestamp).toLocaleString()}</p>
+                      <p className="text-xs font-bold text-slate-800 mb-1">{log.field === 'Comment' ? '💬 Note Added' : `📝 Changed ${log.field}`}</p>
+                      <div className="text-[11px] text-slate-600 mb-2 font-medium">
+                        <span className="text-red-600">{log.oldValue}</span> → <span className="text-green-600">{log.newValue}</span>
                       </div>
                       {log.details && (
-                        <div className="mt-1.5 p-2 bg-white rounded-lg border border-slate-100 shadow-sm">
-                          <p className="text-[10px] text-slate-600 leading-relaxed italic">"{log.details}"</p>
+                        <div className="mt-2 p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
+                          <p className="text-[11px] text-slate-700 leading-relaxed">"{log.details}"</p>
                         </div>
                       )}
                     </div>
