@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Task, TaskStatus, Role, Staff } from '../types';
 import { MoreVertical, Plus, Calendar, AlertCircle, GripVertical } from 'lucide-react';
+import FilterBar from './FilterBar';
 
 interface TaskBoardProps {
   role: Role;
@@ -17,6 +18,21 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ role, tasks, onUpdateStatus, staf
   const [draggedTaskId, setDraggedTaskId] = React.useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = React.useState<TaskStatus | null>(null);
 
+  // Filter states
+  const [searchInput, setSearchInput] = useState(''); // Immediate input value
+  const [searchQuery, setSearchQuery] = useState(''); // Debounced search value
+  const [selectedAssignee, setSelectedAssignee] = useState<string | null>(null);
+  const [selectedPriority, setSelectedPriority] = useState<string | null>(null);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(searchInput);
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
   const columns = [
     { title: 'To Do', status: TaskStatus.TODO, color: 'slate' },
     { title: 'In Progress', status: TaskStatus.IN_PROGRESS, color: 'blue' },
@@ -25,7 +41,34 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ role, tasks, onUpdateStatus, staf
     { title: 'Completed', status: TaskStatus.DONE, color: 'green' },
   ];
 
-  const roleTasks = tasks.filter(t => t.role === role);
+  // Filter tasks by role and filters
+  const filteredTasks = useMemo(() => {
+    let filtered = tasks.filter(t => t.role === role);
+
+    // Search filter (using debounced value)
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(t =>
+        t.title.toLowerCase().includes(query) ||
+        t.description.toLowerCase().includes(query) ||
+        t.purpose.toLowerCase().includes(query)
+      );
+    }
+
+    // Assignee filter
+    if (selectedAssignee) {
+      filtered = filtered.filter(t => t.assignedTo === selectedAssignee);
+    }
+
+    // Priority filter
+    if (selectedPriority) {
+      filtered = filtered.filter(t => t.priority === selectedPriority);
+    }
+
+    return filtered;
+  }, [tasks, role, searchQuery, selectedAssignee, selectedPriority]);
+
+  const roleTasks = filteredTasks;
 
   const getStatusColor = (color: string) => {
     switch (color) {
@@ -89,6 +132,18 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ role, tasks, onUpdateStatus, staf
     setDragOverColumn(null);
   };
 
+  const handleClearFilters = () => {
+    setSearchInput('');
+    setSearchQuery('');
+    setSelectedAssignee(null);
+    setSelectedPriority(null);
+  };
+
+  const activeFilterCount = [searchInput, selectedAssignee, selectedPriority].filter(Boolean).length;
+
+  // Filter staff members by role
+  const roleStaffMembers = staffMembers.filter(s => s.role === role);
+
   return (
     <div className="h-full flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -106,6 +161,19 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ role, tasks, onUpdateStatus, staf
           </button>
         )}
       </div>
+
+      {/* Filter Bar */}
+      <FilterBar
+        searchQuery={searchInput}
+        onSearchChange={setSearchInput}
+        selectedAssignee={selectedAssignee}
+        onAssigneeChange={setSelectedAssignee}
+        selectedPriority={selectedPriority}
+        onPriorityChange={setSelectedPriority}
+        staffMembers={roleStaffMembers}
+        onClearFilters={handleClearFilters}
+        activeFilterCount={activeFilterCount}
+      />
 
       <div className="flex-1 flex gap-6 overflow-x-auto pb-4 custom-scrollbar">
         {columns.map(column => {
@@ -209,7 +277,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ role, tasks, onUpdateStatus, staf
                           <div className="flex items-center gap-2">
                             <div className="w-16 bg-slate-100 rounded-full h-1">
                               <div className={`h-1 rounded-full ${task.status === TaskStatus.BLOCKER ? 'bg-orange-400' :
-                                  task.status === TaskStatus.OVERDUE ? 'bg-red-500' : 'bg-blue-500'
+                                task.status === TaskStatus.OVERDUE ? 'bg-red-500' : 'bg-blue-500'
                                 }`} style={{ width: `${task.progress}%` }}></div>
                             </div>
                             <span className="text-[10px] font-bold text-slate-500">{task.progress}%</span>

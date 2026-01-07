@@ -9,10 +9,12 @@ import TaskModal from './components/TaskModal';
 import NewTaskModal from './components/NewTaskModal';
 import CSDailyChecklist from './components/CSDailyChecklist';
 import DailySummaryModal from './components/DailySummaryModal';
+import SkeletonLoader from './components/SkeletonLoader';
 import { CS_DAILY_TEMPLATES } from './constants';
 import { Task, TaskStatus, Role, UpdateLog, Staff } from './types';
 import { api } from './src/services/api';
 import { Loader2 } from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
 
 const AppContent: React.FC = () => {
   const { user, loading: authLoading, logout } = useAuth();
@@ -55,6 +57,7 @@ const AppContent: React.FC = () => {
   };
 
   const handleUpdateStatus = async (taskId: string, newStatus: TaskStatus) => {
+    const loadingToast = toast.loading('Updating task status...');
     try {
       const response = await api.tasks.updateStatus(taskId, newStatus);
 
@@ -67,13 +70,16 @@ const AppContent: React.FC = () => {
       if (selectedTask?.id === taskId) {
         setSelectedTask(response.task);
       }
+
+      toast.success('Status updated successfully!', { id: loadingToast });
     } catch (err: any) {
       console.error('Failed to update task status:', err);
-      alert(err.response?.data?.error || 'Failed to update task status');
+      toast.error(err.response?.data?.error || 'Failed to update task status', { id: loadingToast });
     }
   };
 
   const handleUpdateTask = async (updatedTask: Task, newLogs: UpdateLog[]) => {
+    const loadingToast = toast.loading('Saving changes...');
     try {
       // Prepare payload with all required fields
       const payload = {
@@ -99,13 +105,15 @@ const AppContent: React.FC = () => {
       ));
 
       setSelectedTask(response.task);
+      toast.success('Task updated successfully!', { id: loadingToast });
     } catch (err: any) {
       console.error('Failed to update task:', err);
-      alert(err.message || 'Failed to update task');
+      toast.error(err.message || 'Failed to update task', { id: loadingToast });
     }
   };
 
   const handleAddTask = async (taskData: Omit<Task, 'id' | 'createdAt' | 'history'>) => {
+    const loadingToast = toast.loading('Creating task...');
     try {
       // Build payload with explicit fields
       const apiPayload = {
@@ -124,16 +132,17 @@ const AppContent: React.FC = () => {
       // Add to local state
       setTasks(prev => [...prev, response.task]);
       setIsNewTaskModalOpen(false);
+      toast.success('Task created successfully!', { id: loadingToast });
     } catch (err: any) {
       console.error('Failed to create task:', err);
       console.error('Error details:', err.response?.data);
       console.error('Validation errors:', err.response?.data?.details);
 
       const errorMsg = err.response?.data?.details
-        ? `Validation errors:\n${JSON.stringify(err.response.data.details, null, 2)}`
+        ? `Validation errors: ${JSON.stringify(err.response.data.details, null, 2)}`
         : err.message;
 
-      alert(`Failed to create task:\n${errorMsg}`);
+      toast.error(`Failed to create task: ${errorMsg}`, { id: loadingToast });
     }
   };
 
@@ -146,6 +155,7 @@ const AppContent: React.FC = () => {
       title: template.title,
       purpose: `Vận hành daily store: ${template.category}`,
       description: `Daily recurring task: ${template.category}`,
+      assignedTo: staffId,
       assignedToId: staffId,
       role: Role.CS,
       status: TaskStatus.IN_PROGRESS,
@@ -177,12 +187,17 @@ const AppContent: React.FC = () => {
   // Show loading screen while fetching data
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto" />
-          <p className="text-slate-600">Loading workspace...</p>
+      <Layout
+        activeView={activeView}
+        setActiveView={setActiveView}
+        onOpenSummary={() => setIsSummaryOpen(true)}
+        currentUser={user}
+        onUserLogout={logout}
+      >
+        <div className="p-8">
+          <SkeletonLoader variant="card" count={6} />
         </div>
-      </div>
+      </Layout>
     );
   }
 
@@ -332,6 +347,36 @@ const AppContent: React.FC = () => {
           onClose={() => setIsSummaryOpen(false)}
         />
       )}
+
+      {/* Toast Notifications */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#fff',
+            color: '#1e293b',
+            border: '1px solid #e2e8f0',
+            borderRadius: '12px',
+            padding: '16px',
+            fontSize: '14px',
+            fontWeight: '500',
+            boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
     </Layout>
   );
 };

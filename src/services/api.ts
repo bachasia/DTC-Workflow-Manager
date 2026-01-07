@@ -235,6 +235,14 @@ export const api = {
             return handleResponse(response);
         },
     },
+
+    // Dashboard
+    dashboard: {
+        getStats: async () => {
+            const response = await makeRequest('/dashboard/stats');
+            return handleResponse(response);
+        },
+    },
 };
 
 export default api;
