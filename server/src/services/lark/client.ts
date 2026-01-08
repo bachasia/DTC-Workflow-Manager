@@ -39,14 +39,15 @@ export const sendMessageToUser = async (
             return false;
         }
 
-        const openId = (userRes.data.user_list[0] as any).open_id;
+        // Note: API returns user_id field but the value is actually an open_id (starts with ou_)
+        const openId = (userRes.data.user_list[0] as any).user_id;
 
         if (!openId) {
-            logger.warn(`Lark open ID not found for email: ${userEmail}`);
+            logger.warn(`Lark user ID not found for email: ${userEmail}`);
             return false;
         }
 
-        // Send message
+        // Send message using open_id type
         const messageRes = await client.im.message.create({
             params: {
                 receive_id_type: 'open_id',
@@ -92,10 +93,11 @@ export const sendCardMessage = async (
             return false;
         }
 
-        const openId = (userRes.data.user_list[0] as any).open_id;
+        // Note: API returns user_id field but the value is actually an open_id (starts with ou_)
+        const openId = (userRes.data.user_list[0] as any).user_id;
 
         if (!openId) {
-            logger.warn(`Lark open ID not found for email: ${userEmail}`);
+            logger.warn(`Lark user ID not found for email: ${userEmail}`);
             return false;
         }
 
