@@ -1,8 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
-import { Task, TaskStatus, Role } from '../types';
-import { STAFF_LIST } from '../constants';
+import { Task, TaskStatus, Role, Staff } from '../types';
 import {
   CheckCircle2,
   Clock,
@@ -18,11 +17,12 @@ import {
 
 interface DashboardProps {
   tasks: Task[];
+  staffList: Staff[];
 }
 
 type FilterType = 'all' | TaskStatus.DONE | TaskStatus.IN_PROGRESS | TaskStatus.OVERDUE;
 
-const Dashboard: React.FC<DashboardProps> = ({ tasks }) => {
+const Dashboard: React.FC<DashboardProps> = ({ tasks, staffList }) => {
   const [selectedFilter, setSelectedFilter] = useState<FilterType | null>(null);
 
   const stats = [
@@ -156,7 +156,7 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks }) => {
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {filteredTasks.map(task => {
-                    const staff = STAFF_LIST.find(s => s.id === task.assignedTo);
+                    const staff = staffList.find(s => s.id === task.assignedTo);
                     return (
                       <tr key={task.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4">
@@ -233,7 +233,7 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks }) => {
             Staff Performance
           </h3>
           <div className="space-y-5 flex-1 overflow-y-auto custom-scrollbar pr-1">
-            {STAFF_LIST.filter(s => s.role !== Role.MANAGER).map(staff => {
+            {staffList.filter(s => s.role !== Role.MANAGER).map(staff => {
               const staffTasks = tasks.filter(t => t.assignedTo === staff.id);
               const done = staffTasks.filter(t => t.status === TaskStatus.DONE).length;
               const progress = staffTasks.length ? (done / staffTasks.length) * 100 : 0;
@@ -284,7 +284,7 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks }) => {
             </thead>
             <tbody className="divide-y divide-slate-50">
               {tasks.filter(t => (t.priority === 'High' || t.status === TaskStatus.BLOCKER) && t.status !== TaskStatus.DONE).slice(0, 5).map(task => {
-                const staff = STAFF_LIST.find(s => s.id === task.assignedTo);
+                const staff = staffList.find(s => s.id === task.assignedTo);
                 return (
                   <tr key={task.id} className="hover:bg-slate-50 transition-colors group">
                     <td className="py-4 font-medium text-slate-800">

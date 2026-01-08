@@ -1,11 +1,11 @@
 
 import React from 'react';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Palette, 
-  ShoppingBag, 
-  Headphones, 
+import {
+  LayoutDashboard,
+  Users,
+  Palette,
+  ShoppingBag,
+  Headphones,
   ClipboardCheck,
   Bell,
   Search,
@@ -27,7 +27,7 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, onOpenSummary, currentUser, onUserLogout }) => {
   const allNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: [Role.MANAGER, Role.DESIGNER, Role.SELLER, Role.CS] },
-    { id: 'staff', label: 'Team Roles', icon: Users, roles: [Role.MANAGER] },
+    { id: 'users', label: 'Staff Management', icon: Settings, roles: [Role.MANAGER] },
     { id: 'designer', label: 'Design Board', icon: Palette, roles: [Role.MANAGER, Role.DESIGNER] },
     { id: 'seller', label: 'Seller Board', icon: ShoppingBag, roles: [Role.MANAGER, Role.SELLER] },
     { id: 'cs', label: 'CS Board', icon: Headphones, roles: [Role.MANAGER, Role.CS] },
@@ -46,17 +46,16 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, on
           </div>
           <span className="text-xl font-bold tracking-tight">TeamFlow</span>
         </div>
-        
+
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto custom-scrollbar">
           {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveView(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                activeView === item.id 
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' 
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-              }`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeView === item.id
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
+                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                }`}
             >
               <item.icon size={20} />
               <span className="font-medium">{item.label}</span>
@@ -68,11 +67,11 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, on
           <div className="flex items-center gap-3 px-4 py-3 bg-slate-800/50 rounded-xl">
             <img src={currentUser.avatar} className="w-10 h-10 rounded-full bg-slate-700" alt={currentUser.name} />
             <div className="flex-1 truncate">
-              <p className="text-sm font-semibold truncate">{currentUser.name}</p>
+              <p className="text-sm font-semibold truncate">{currentUser.role} [{currentUser.name}]</p>
               <p className="text-[10px] text-slate-500 uppercase font-bold">{currentUser.role}</p>
             </div>
           </div>
-          <button 
+          <button
             onClick={onUserLogout}
             className="w-full flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-400 hover:text-white hover:bg-red-500/10 rounded-lg transition-all"
           >
@@ -88,16 +87,16 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, on
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
           <div className="flex items-center gap-4 bg-slate-100 px-4 py-2 rounded-lg w-96">
             <Search size={18} className="text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Search tasks, campaigns, designs..." 
+            <input
+              type="text"
+              placeholder="Search tasks, campaigns, designs..."
               className="bg-transparent border-none outline-none text-sm w-full text-slate-600"
             />
           </div>
 
           <div className="flex items-center gap-4">
             {currentUser.role === Role.MANAGER && (
-              <button 
+              <button
                 onClick={onOpenSummary}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all border border-blue-100"
               >

@@ -12,10 +12,10 @@ interface CSDailyChecklistProps {
 
 const CSDailyChecklist: React.FC<CSDailyChecklistProps> = ({ templates, tasks, csStaff, onActivateTask }) => {
   const today = new Date().toISOString().split('T')[0];
-  
+
   // Filter tasks that were created from templates today
-  const activeTasksToday = tasks.filter(t => 
-    t.createdAt.startsWith(today) && 
+  const activeTasksToday = tasks.filter(t =>
+    t.createdAt.startsWith(today) &&
     templates.some(temp => temp.title === t.title)
   );
 
@@ -36,11 +36,10 @@ const CSDailyChecklist: React.FC<CSDailyChecklistProps> = ({ templates, tasks, c
           const assignedStaff = activeTask ? csStaff.find(s => s.id === activeTask.assignedTo) : null;
 
           return (
-            <div 
+            <div
               key={template.id}
-              className={`p-4 rounded-2xl border transition-all ${
-                isActive ? 'bg-blue-50/30 border-blue-100 opacity-60' : 'bg-white border-slate-100'
-              }`}
+              className={`p-4 rounded-2xl border transition-all ${isActive ? 'bg-blue-50/30 border-blue-100 opacity-60' : 'bg-white border-slate-100'
+                }`}
             >
               <div className="flex flex-col gap-3">
                 <div>
@@ -51,7 +50,7 @@ const CSDailyChecklist: React.FC<CSDailyChecklistProps> = ({ templates, tasks, c
                 {isActive ? (
                   <div className="flex items-center gap-2">
                     <img src={assignedStaff?.avatar} className="w-5 h-5 rounded-full border border-blue-200" />
-                    <span className="text-[10px] font-bold text-blue-600">Assigned to {assignedStaff?.name.split('[')[1].replace(']', '')}</span>
+                    <span className="text-[10px] font-bold text-blue-600">Assigned to {assignedStaff?.name}</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 mt-1">
@@ -63,7 +62,7 @@ const CSDailyChecklist: React.FC<CSDailyChecklistProps> = ({ templates, tasks, c
                         className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-bold text-slate-600 transition-all border border-slate-200"
                       >
                         <Play size={10} fill="currentColor" />
-                        {staff.name.split('[')[1].replace(']', '')}
+                        {staff.name}
                       </button>
                     ))}
                   </div>
@@ -73,7 +72,7 @@ const CSDailyChecklist: React.FC<CSDailyChecklistProps> = ({ templates, tasks, c
           );
         })}
       </div>
-      
+
       <div className="p-4 bg-blue-50/50 border-t border-blue-100 flex items-start gap-2">
         <Info size={14} className="text-blue-500 shrink-0 mt-0.5" />
         <p className="text-[10px] text-blue-700 leading-tight">

@@ -8,6 +8,7 @@ import DailyReporter from './components/DailyReporter';
 import TaskModal from './components/TaskModal';
 import NewTaskModal from './components/NewTaskModal';
 import CSDailyChecklist from './components/CSDailyChecklist';
+import UserManagement from './components/UserManagement';
 import DailySummaryModal from './components/DailySummaryModal';
 import SkeletonLoader from './components/SkeletonLoader';
 import { CS_DAILY_TEMPLATES } from './constants';
@@ -222,7 +223,7 @@ const AppContent: React.FC = () => {
   const renderContent = () => {
     switch (activeView) {
       case 'dashboard':
-        return <Dashboard tasks={tasks} />;
+        return <Dashboard tasks={tasks} staffList={staffList} />;
       case 'designer':
         return (
           <TaskBoard
@@ -288,24 +289,12 @@ const AppContent: React.FC = () => {
             )}
           </div>
         );
-      case 'staff':
-        return user.role === Role.MANAGER ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {staffList.map(staff => (
-              <div key={staff.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
-                <img src={staff.avatar} className="w-16 h-16 rounded-full border border-slate-100 shadow-sm" />
-                <div>
-                  <h3 className="text-lg font-bold text-slate-800">{staff.name}</h3>
-                  <p className="text-slate-500 text-sm font-medium">{staff.role}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : null;
+      case 'users':
+        return user.role === Role.MANAGER ? <UserManagement currentUser={user} /> : null;
       case 'reports':
         return user.role === Role.MANAGER ? <DailyReporter staffList={staffList} tasks={tasks} /> : null;
       default:
-        return <Dashboard tasks={tasks} />;
+        return <Dashboard tasks={tasks} staffList={staffList} />;
     }
   };
 

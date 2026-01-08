@@ -262,3 +262,137 @@ export const sendDailyReportReminder = async (user: User): Promise<void> => {
         logger.error('Send daily report reminder error:', error);
     }
 };
+
+/**
+ * Create task blocked notification card
+ */
+const createTaskBlockedCard = (task: Task & { assignedTo: User; createdBy: User }) => {
+    return {
+        config: {
+            wide_screen_mode: true,
+        },
+        header: {
+            title: {
+                tag: 'plain_text',
+                content: '🚫 Task Blocked - Urgent Attention Required!',
+            },
+            template: 'red',
+        },
+        elements: [
+            {
+                tag: 'div',
+                text: {
+                    tag: 'lark_md',
+                    content: `**${task.title}**\n\n⚠️ This task has been marked as BLOCKED`,
+                },
+            },
+            {
+                tag: 'hr',
+            },
+            {
+                tag: 'div',
+                fields: [
+                    {
+                        is_short: true,
+                        text: {
+                            tag: 'lark_md',
+                            content: `**Assigned to:**\n👤 ${task.assignedTo.name}`,
+                        },
+                    },
+                    {
+                        is_short: true,
+                        text: {
+                            tag: 'lark_md',
+                            content: `**Deadline:**\n⏰ ${new Date(task.deadline).toLocaleString('vi-VN')}`,
+                        },
+                    },
+                ],
+            },
+            {
+                tag: 'hr',
+            },
+            {
+                tag: 'div',
+                text: {
+                    tag: 'lark_md',
+                    content: `**🔴 Blocker Reason:**\n${task.blockerReason || 'No reason provided'}`,
+                },
+            },
+            ...(task.blockerRelatedTo ? [{
+                tag: 'div' as const,
+                text: {
+                    tag: 'lark_md' as const,
+                    content: `**Related Task:**\n${task.blockerRelatedTo}`,
+                },
+            }] : []),
+            {
+                tag: 'hr',
+            },
+            {
+                tag: 'note',
+                elements: [
+                    {
+                        tag: 'plain_text',
+                        content: '⚡ Action Required: Please resolve this blocker as soon as possible to keep the project on track.',
+                    },
+                ],
+            },
+        ],
+    };
+};
+
+/**
+ * Send task blocked notification to both assignee and manager
+ */
+export const sendTaskBlockedNotification = async (
+    task: Task & { assignedTo: User; createdBy: User }
+): Promise<void> => {
+    try {
+        const card = createTaskBlockedCard(task);
+
+        // Send to assignee
+        const sentToAssignee = await sendCardMessage(task.assignedTo.email, card);
+
+        // Send to manager
+        const sentToManager = await sendCardMessage(task.createdBy.email, card);
+
+        // Log notifications
+        await prisma.larkNotification.createMany({
+            data: [
+                {
+                    type: NotificationType.STATUS_CHANGED,
+                    message: `Task "${task.title}" blocked - sent to assignee`,
+                    userId: task.assignedTo.id,
+                    taskId: task.id,
+                    sent: sentToAssignee,
+                    sentAt: sentToAssignee ? new Date() : null,
+                },
+                {
+                    type: NotificationType.STATUS_CHANGED,
+                    message: `Task "${task.title}" blocked - sent to manager`,
+                    userId: task.createdBy.id,
+                    taskId: task.id,
+                    sent: sentToManager,
+                    sentAt: sentToManager ? new Date() : null,
+                },
+            ],
+        });
+
+        logger.info(`Task blocked notification sent for task ${task.id} to assignee and manager`);
+    } catch (error) {
+        logger.error('Send task blocked notification error:', error);
+
+        // Log failed notification
+        await prisma.larkNotification.create({
+            data: {
+                type: NotificationType.STATUS_CHANGED,
+                message: `Task "${task.title}" blocked notification failed`,
+                userId: task.assignedTo.id,
+                taskId: task.id,
+                sent: false,
+                error: String(error),
+            },
+        });
+    }
+};
+

@@ -4,6 +4,11 @@ import prisma from '../lib/prisma.js';
 import logger from '../lib/logger.js';
 import { AuthRequest, authenticate, requireManager } from '../middleware/auth.js';
 import { Role, TaskStatus, Priority } from '@prisma/client';
+import {
+    sendTaskAssignmentNotification,
+    sendStatusChangeNotification,
+    sendTaskBlockedNotification
+} from '../services/lark/notifications.js';
 
 const router = Router();
 
@@ -137,13 +142,24 @@ router.post('/', authenticate, requireManager, async (req: AuthRequest, res: Res
                         avatar: true,
                     },
                 },
+                createdBy: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        role: true,
+                    },
+                },
                 updateLogs: true,
             },
         });
 
         logger.info(`Task created: ${task.id} by ${user.email}`);
 
-        // TODO: Send Lark notification
+        // Send Lark notification to assignee
+        sendTaskAssignmentNotification(task as any).catch((error) => {
+            logger.error('Failed to send task assignment notification:', error);
+        });
 
         res.status(201).json({ task });
     } catch (error) {
@@ -342,6 +358,14 @@ router.patch('/:id/status', authenticate, async (req: AuthRequest, res: Response
             },
             include: {
                 assignedTo: true,
+                createdBy: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        role: true,
+                    },
+                },
                 updateLogs: {
                     orderBy: { timestamp: 'desc' },
                     take: 10,
@@ -351,7 +375,18 @@ router.patch('/:id/status', authenticate, async (req: AuthRequest, res: Response
 
         logger.info(`Task status updated: ${task.id} -> ${status} by ${user.email}`);
 
-        // TODO: Send Lark notification for status change
+        // Send Lark notifications based on status change
+        if (status === TaskStatus.BLOCKER) {
+            // Send urgent blocker notification to both assignee and manager
+            sendTaskBlockedNotification(task as any).catch((error) => {
+                logger.error('Failed to send task blocked notification:', error);
+            });
+        } else {
+            // Send regular status change notification for DONE and other important changes
+            sendStatusChangeNotification(task as any, existingTask.status, status).catch((error) => {
+                logger.error('Failed to send status change notification:', error);
+            });
+        }
 
         res.json({ task });
     } catch (error) {

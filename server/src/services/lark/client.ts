@@ -1,5 +1,5 @@
 import * as lark from '@larksuiteoapi/node-sdk';
-import logger from '../lib/logger.js';
+import logger from '../../lib/logger.js';
 
 // Initialize Lark client
 const client = new lark.Client({

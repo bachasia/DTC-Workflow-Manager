@@ -16,11 +16,11 @@ const DailySummaryModal: React.FC<DailySummaryModalProps> = ({ tasks, staffMembe
   const handleExport = () => {
     // Enhanced headers to include Date, Blocker Reason, and Related Person
     const headers = ['Date', 'Task', 'Assignee', 'Status', 'Blocker Reason', 'Related Person', 'Progress', 'Priority'];
-    
+
     const rows = todaysTasks.map(t => {
       const taskDate = new Date(t.createdAt).toLocaleDateString();
       const assigneeName = staffMembers.find(s => s.id === t.assignedTo)?.name || 'Unknown';
-      
+
       return [
         `"${taskDate}"`,
         `"${(t.title || '').replace(/"/g, '""')}"`,
@@ -60,7 +60,7 @@ const DailySummaryModal: React.FC<DailySummaryModalProps> = ({ tasks, staffMembe
             <p className="text-sm text-slate-500">Reviewing performance for {today}</p>
           </div>
           <div className="flex items-center gap-3">
-            <button 
+            <button
               onClick={handleExport}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-md"
             >
@@ -83,7 +83,7 @@ const DailySummaryModal: React.FC<DailySummaryModalProps> = ({ tasks, staffMembe
                 <div key={staff.id} className="space-y-4">
                   <div className="flex items-center gap-3 border-b border-slate-100 pb-2">
                     <img src={staff.avatar} className="w-8 h-8 rounded-full" />
-                    <h3 className="font-bold text-slate-800">{staff.name}</h3>
+                    <h3 className="font-bold text-slate-800">{staff.role} [{staff.name}]</h3>
                     <span className="text-xs bg-slate-100 px-2 py-0.5 rounded-full text-slate-500 font-bold uppercase">{staff.role}</span>
                   </div>
 

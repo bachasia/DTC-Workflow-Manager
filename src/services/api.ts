@@ -204,6 +204,26 @@ export const api = {
             const response = await makeRequest(`/users/${id}/tasks`);
             return handleResponse(response);
         },
+        create: async (data: { name: string; email: string; password: string; role: string; avatar?: string }) => {
+            const response = await makeRequest('/users', {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
+            return handleResponse(response);
+        },
+        update: async (id: string, data: { name: string; email: string; role: string; avatar?: string }) => {
+            const response = await makeRequest(`/users/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify(data),
+            });
+            return handleResponse(response);
+        },
+        delete: async (id: string) => {
+            const response = await makeRequest(`/users/${id}`, {
+                method: 'DELETE',
+            });
+            return handleResponse(response);
+        },
     },
 
     // Reports

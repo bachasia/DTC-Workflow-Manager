@@ -69,7 +69,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
                         <option value="">All Assignees</option>
                         {staffMembers.map((staff) => (
                             <option key={staff.id} value={staff.id}>
-                                {staff.name}
+                                {staff.role} [{staff.name}]
                             </option>
                         ))}
                     </select>
