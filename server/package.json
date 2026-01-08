@@ -13,7 +13,8 @@
         "prisma:studio": "prisma studio",
         "prisma:seed": "tsx prisma/seed.ts",
         "test": "vitest",
-        "test:integration": "vitest run --config vitest.integration.config.ts"
+        "test:integration": "vitest run --config vitest.integration.config.ts",
+        "test:lark": "tsx src/scripts/test-lark-notification.ts"
     },
     "keywords": [
         "workflow",

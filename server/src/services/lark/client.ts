@@ -39,15 +39,20 @@ export const sendMessageToUser = async (
             return false;
         }
 
-        const userId = userRes.data.user_list[0].user_id;
+        const openId = (userRes.data.user_list[0] as any).open_id;
+
+        if (!openId) {
+            logger.warn(`Lark open ID not found for email: ${userEmail}`);
+            return false;
+        }
 
         // Send message
         const messageRes = await client.im.message.create({
             params: {
-                receive_id_type: 'user_id',
+                receive_id_type: 'open_id',
             },
             data: {
-                receive_id: userId,
+                receive_id: openId,
                 msg_type: 'text',
                 content: JSON.stringify({
                     text: messageContent,
@@ -63,7 +68,7 @@ export const sendMessageToUser = async (
             return false;
         }
     } catch (error) {
-        logger.error('Lark send message error:', error);
+        logger.error('Lark send message error:', error instanceof Error ? error.message : String(error));
         return false;
     }
 };
@@ -87,14 +92,19 @@ export const sendCardMessage = async (
             return false;
         }
 
-        const userId = userRes.data.user_list[0].user_id;
+        const openId = (userRes.data.user_list[0] as any).open_id;
+
+        if (!openId) {
+            logger.warn(`Lark open ID not found for email: ${userEmail}`);
+            return false;
+        }
 
         const messageRes = await client.im.message.create({
             params: {
-                receive_id_type: 'user_id',
+                receive_id_type: 'open_id',
             },
             data: {
-                receive_id: userId,
+                receive_id: openId,
                 msg_type: 'interactive',
                 content: JSON.stringify(card),
             },
@@ -108,7 +118,7 @@ export const sendCardMessage = async (
             return false;
         }
     } catch (error) {
-        logger.error('Lark send card error:', error);
+        logger.error('Lark send card error:', error instanceof Error ? error.message : String(error));
         return false;
     }
 };
@@ -142,7 +152,7 @@ export const sendMessageToGroup = async (
             return false;
         }
     } catch (error) {
-        logger.error('Lark send group message error:', error);
+        logger.error('Lark send group message error:', error instanceof Error ? error.message : String(error));
         return false;
     }
 };
