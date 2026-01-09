@@ -39,7 +39,7 @@ services:
       LARK_BASE_ID: ${LARK_BASE_ID}
       LARK_REPORT_TABLE_ID: ${LARK_REPORT_TABLE_ID}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
     ports:
       - "3001:3001"
     depends_on:
@@ -58,20 +58,20 @@ services:
         node dist/index.js
       "
 
-  # Frontend with nginx
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-    container_name: dtc-frontend
-    ports:
-      - "80:80"
-    depends_on:
-      backend:
-        condition: service_started
-    restart: unless-stopped
-    networks:
-      - dtc-network
+  # Frontend with nginx (disabled - using dev server)
+  # frontend:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.frontend
+  #   container_name: dtc-frontend
+  #   ports:
+  #     - "80:80"
+  #   depends_on:
+  #     backend:
+  #       condition: service_started
+  #   restart: unless-stopped
+  #   networks:
+  #     - dtc-network
 
 volumes:
   postgres_data:

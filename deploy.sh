@@ -25,19 +25,19 @@ fi
 
 # Stop existing containers
 echo "🛑 Stopping existing containers..."
-docker-compose down || true
+docker compose down || true
 
 # Remove old images (optional - uncomment to force rebuild)
 # echo "🗑️  Removing old images..."
-# docker-compose rm -f
+# docker compose rm -f
 
 # Build images
 echo "🔨 Building Docker images..."
-docker-compose build --no-cache
+docker compose build --no-cache
 
 # Start services
 echo "🚀 Starting services..."
-docker-compose up -d
+docker compose up -d
 
 # Wait for services to be healthy
 echo "⏳ Waiting for services to start..."
@@ -46,12 +46,12 @@ sleep 10
 # Check service status
 echo ""
 echo "📊 Service Status:"
-docker-compose ps
+docker compose ps
 
 # Show logs
 echo ""
 echo "📝 Recent logs:"
-docker-compose logs --tail=50
+docker compose logs --tail=50
 
 echo ""
 echo "======================================"
