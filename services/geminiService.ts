@@ -2,7 +2,21 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Task, Staff, TaskStatus } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+// Lazy initialization to prevent app crash if API key is missing
+let ai: GoogleGenAI | null = null;
+
+const getAI = () => {
+  if (!ai) {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.warn('Gemini API key not configured. AI features will be disabled.');
+      return null;
+    }
+    ai = new GoogleGenAI({ apiKey });
+  }
+  return ai;
+};
 
 export interface AnalyticalReport {
   productivityScore: number;
@@ -16,7 +30,7 @@ export interface AnalyticalReport {
 
 export const generateAnalyticalReport = async (staff: Staff, tasks: Task[]): Promise<AnalyticalReport> => {
   const staffTasks = tasks.filter(t => t.assignedTo === staff.id);
-  
+
   const taskDetails = staffTasks.map(t => {
     return `Task: ${t.title}, Priority: ${t.priority}, Status: ${t.status}, Progress: ${t.progress}%, Blocker: ${t.blockerReason || 'None'}`;
   }).join('\n');
@@ -42,7 +56,21 @@ export const generateAnalyticalReport = async (staff: Staff, tasks: Task[]): Pro
   `;
 
   try {
-    const response = await ai.models.generateContent({
+    const aiInstance = getAI();
+    if (!aiInstance) {
+      // Return mock data when AI is not available
+      return {
+        productivityScore: 75,
+        brandFocus: [],
+        priorityMix: [],
+        completionRate: 0,
+        pendingTasksCount: staffTasks.length,
+        narrativeSummary: `Report for ${staff.name} - AI features disabled`,
+        managementInsight: 'Configure VITE_GEMINI_API_KEY to enable AI analytics'
+      };
+    }
+
+    const response = await aiInstance.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
@@ -67,7 +95,12 @@ export const suggestDeadlines = async (taskDescription: string): Promise<string>
   `;
 
   try {
-    const response = await ai.models.generateContent({
+    const aiInstance = getAI();
+    if (!aiInstance) {
+      return "AI not configured";
+    }
+
+    const response = await aiInstance.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
     });
