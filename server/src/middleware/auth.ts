@@ -97,6 +97,7 @@ export const generateAccessToken = (user: JWTPayload): string => {
         throw new Error('JWT_SECRET not configured');
     }
 
+    // @ts-ignore - jsonwebtoken types have issues with expiresIn
     return jwt.sign(user, secret, { expiresIn });
 };
 
@@ -111,6 +112,7 @@ export const generateRefreshToken = (user: JWTPayload): string => {
         throw new Error('JWT_REFRESH_SECRET not configured');
     }
 
+    // @ts-ignore - jsonwebtoken types have issues with expiresIn
     return jwt.sign(user, secret, { expiresIn });
 };
 

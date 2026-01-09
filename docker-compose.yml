@@ -18,6 +18,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - dtc-network
+    restart: unless-stopped
 
   # Backend API
   backend:
@@ -46,6 +49,8 @@ services:
       - ./server/logs:/app/logs
       - ./server/uploads:/app/uploads
     restart: unless-stopped
+    networks:
+      - dtc-network
     command: >
       sh -c "
         npx prisma migrate deploy &&
@@ -53,17 +58,24 @@ services:
         node dist/index.js
       "
 
-  # Frontend (optional - for production)
-  # frontend:
-  #   image: nginx:alpine
-  #   container_name: dtc-frontend
-  #   ports:
-  #     - "80:80"
-  #   volumes:
-  #     - ./dist:/usr/share/nginx/html
-  #   depends_on:
-  #     - backend
-  #   restart: unless-stopped
+  # Frontend with nginx
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: dtc-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - dtc-network
 
 volumes:
   postgres_data:
+
+networks:
+  dtc-network:
+    driver: bridge
