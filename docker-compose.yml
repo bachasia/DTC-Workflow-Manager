@@ -53,6 +53,7 @@ services:
       - dtc-network
     command: >
       sh -c "
+        ls -R prisma &&
         npx prisma migrate deploy &&
         npx prisma db seed &&
         node dist/index.js
