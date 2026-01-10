@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Helper function to make authenticated requests
 const makeRequest = async (url: string, options: RequestInit = {}) => {
