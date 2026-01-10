@@ -20,7 +20,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ onClose, onAdd, staffMember
   const [description, setDescription] = useState('');
   const [assignedTo, setAssignedTo] = useState(filteredStaff[0]?.id || '');
   const [priority, setPriority] = useState<'High' | 'Medium' | 'Low'>('Medium');
-  const [deadline, setDeadline] = useState(new Date(Date.now() + 86400000).toISOString().split('T')[0]);
+  const [deadline, setDeadline] = useState(new Date(Date.now() + 86400000).toISOString().slice(0, 16));
 
   // FIX: Reset assignee when role changes to prevent ID mismatch (Bug fix for CS Đào -> Designer Tư)
   useEffect(() => {
@@ -35,8 +35,8 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ onClose, onAdd, staffMember
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Convert date-only string to ISO datetime with end of day time
-    const deadlineDate = new Date(deadline + 'T23:59:59');
+    // Convert datetime-local string to ISO datetime
+    const deadlineDate = new Date(deadline);
 
     onAdd({
       title,
@@ -151,7 +151,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ onClose, onAdd, staffMember
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-700">Deadline</label>
               <input
-                type="date"
+                type="datetime-local"
                 required
                 value={deadline}
                 onChange={e => setDeadline(e.target.value)}

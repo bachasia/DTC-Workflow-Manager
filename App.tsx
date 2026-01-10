@@ -7,6 +7,7 @@ import TaskBoard from './components/TaskBoard';
 import DailyReporter from './components/DailyReporter';
 import TaskModal from './components/TaskModal';
 import NewTaskModal from './components/NewTaskModal';
+import WeeklyReportModal from './components/WeeklyReportModal';
 import CSDailyChecklist from './components/CSDailyChecklist';
 import UserManagement from './components/UserManagement';
 import DailySummaryModal from './components/DailySummaryModal';
@@ -24,6 +25,7 @@ const AppContent: React.FC = () => {
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [newTaskRole, setNewTaskRole] = useState<Role>(Role.DESIGNER);
   const [loading, setLoading] = useState(true);
@@ -110,6 +112,23 @@ const AppContent: React.FC = () => {
     } catch (err: any) {
       console.error('Failed to update task:', err);
       toast.error(err.message || 'Failed to update task', { id: loadingToast });
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    const loadingToast = toast.loading('Deleting task...');
+    try {
+      await api.tasks.delete(taskId);
+
+      // Remove from local state
+      setTasks(prev => prev.filter(task => task.id !== taskId));
+      setSelectedTask(null);
+
+      toast.success('Task deleted successfully!', { id: loadingToast });
+    } catch (err: any) {
+      console.error('Failed to delete task:', err);
+      toast.error(err.message || 'Failed to delete task', { id: loadingToast });
+      throw err; // Re-throw so TaskModal can handle it
     }
   };
 
@@ -238,6 +257,7 @@ const AppContent: React.FC = () => {
                 setIsNewTaskModalOpen(true);
               }
             }}
+            onReportClick={() => setIsReportModalOpen(true)}
             currentUser={user}
           />
         );
@@ -255,6 +275,7 @@ const AppContent: React.FC = () => {
                 setIsNewTaskModalOpen(true);
               }
             }}
+            onReportClick={() => setIsReportModalOpen(true)}
             currentUser={user}
           />
         );
@@ -274,6 +295,7 @@ const AppContent: React.FC = () => {
                     setIsNewTaskModalOpen(true);
                   }
                 }}
+                onReportClick={() => setIsReportModalOpen(true)}
                 currentUser={user}
               />
             </div>
@@ -315,6 +337,7 @@ const AppContent: React.FC = () => {
           task={selectedTask}
           onClose={() => setSelectedTask(null)}
           onUpdateTask={handleUpdateTask}
+          onDeleteTask={handleDeleteTask}
           staffMembers={staffList}
           currentUser={user}
         />
@@ -326,6 +349,14 @@ const AppContent: React.FC = () => {
           onAdd={handleAddTask}
           staffMembers={staffList}
           initialRole={newTaskRole}
+        />
+      )}
+
+      {isReportModalOpen && (
+        <WeeklyReportModal
+          onClose={() => setIsReportModalOpen(false)}
+          currentUser={user}
+          staffMembers={staffList}
         />
       )}
 

@@ -222,4 +222,163 @@ router.get('/analytics', authenticate, requireManager, async (req: AuthRequest, 
     }
 });
 
+/**
+ * GET /api/reports/weekly
+ * Generate weekly progress report
+ */
+router.get('/weekly', authenticate, async (req: AuthRequest, res: Response) => {
+    try {
+        const user = req.user!;
+        const { userId, startDate, endDate } = req.query;
+
+        // Determine target user for report
+        let targetUserId = user.id;
+        if (userId && user.role === Role.MANAGER) {
+            targetUserId = userId as string;
+        }
+
+        // Calculate date range (default: last 7 days)
+        const end = endDate ? new Date(endDate as string) : new Date();
+        const start = startDate ? new Date(startDate as string) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+        // Fetch target user info
+        const targetUser = await prisma.user.findUnique({
+            where: { id: targetUserId },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+            },
+        });
+
+        if (!targetUser) {
+            res.status(404).json({ error: 'User not found' });
+            return;
+        }
+
+        // Fetch all tasks for the user
+        const allTasks = await prisma.task.findMany({
+            where: {
+                assignedToId: targetUserId,
+            },
+            include: {
+                updateLogs: {
+                    orderBy: { timestamp: 'desc' },
+                },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        // Filter tasks by date range for completed tasks
+        const completedTasks = allTasks.filter(task => {
+            if (task.status !== TaskStatus.DONE) return false;
+            // Check if task was completed within the date range
+            const completionLog = task.updateLogs.find(log =>
+                log.field === 'Status' && log.newValue === TaskStatus.DONE
+            );
+            if (!completionLog) return false;
+            const completionDate = new Date(completionLog.timestamp);
+            return completionDate >= start && completionDate <= end;
+        });
+
+        const inProgressTasks = allTasks.filter(task =>
+            task.status === TaskStatus.IN_PROGRESS || task.status === TaskStatus.TODO
+        );
+
+        const overdueTasks = allTasks.filter(task => task.status === TaskStatus.OVERDUE);
+        const blockedTasks = allTasks.filter(task => task.status === TaskStatus.BLOCKER);
+
+        // Calculate statistics
+        const totalTasks = allTasks.length;
+        const completedCount = completedTasks.length;
+        const inProgressCount = inProgressTasks.length;
+        const overdueCount = overdueTasks.length;
+        const blockedCount = blockedTasks.length;
+
+        const avgProgress = allTasks.length > 0
+            ? Math.round(allTasks.reduce((sum, t) => sum + t.progress, 0) / allTasks.length)
+            : 0;
+
+        // Get recent updates within date range
+        const recentUpdates = allTasks
+            .flatMap(task =>
+                task.updateLogs
+                    .filter(log => {
+                        const logDate = new Date(log.timestamp);
+                        return logDate >= start && logDate <= end;
+                    })
+                    .map(log => ({
+                        ...log,
+                        taskTitle: task.title,
+                        taskId: task.id,
+                    }))
+            )
+            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+            .slice(0, 20);
+
+        const report = {
+            user: targetUser,
+            period: {
+                start: start.toISOString(),
+                end: end.toISOString(),
+            },
+            generatedAt: new Date().toISOString(),
+            statistics: {
+                totalTasks,
+                completedCount,
+                inProgressCount,
+                overdueCount,
+                blockedCount,
+                avgProgress,
+                completionRate: totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0,
+            },
+            tasks: {
+                completed: completedTasks.map(t => ({
+                    id: t.id,
+                    title: t.title,
+                    purpose: t.purpose,
+                    priority: t.priority,
+                    deadline: t.deadline,
+                    progress: t.progress,
+                })),
+                inProgress: inProgressTasks.map(t => ({
+                    id: t.id,
+                    title: t.title,
+                    purpose: t.purpose,
+                    status: t.status,
+                    priority: t.priority,
+                    deadline: t.deadline,
+                    progress: t.progress,
+                })),
+                overdue: overdueTasks.map(t => ({
+                    id: t.id,
+                    title: t.title,
+                    purpose: t.purpose,
+                    priority: t.priority,
+                    deadline: t.deadline,
+                    progress: t.progress,
+                })),
+                blocked: blockedTasks.map(t => ({
+                    id: t.id,
+                    title: t.title,
+                    purpose: t.purpose,
+                    priority: t.priority,
+                    blockerReason: t.blockerReason,
+                    blockerRelatedTo: t.blockerRelatedTo,
+                    deadline: t.deadline,
+                    progress: t.progress,
+                })),
+            },
+            recentUpdates,
+        };
+
+        logger.info(`Weekly report generated for user ${targetUserId} by ${user.email}`);
+        res.json({ report });
+    } catch (error) {
+        logger.error('Generate weekly report error:', error);
+        res.status(500).json({ error: 'Failed to generate report' });
+    }
+});
+
 export default router;

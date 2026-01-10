@@ -61,12 +61,9 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
         // Build filter
         const where: any = {};
 
-        // Non-managers can only see their own tasks or tasks in their department
+        // Non-managers can only see tasks assigned to them
         if (user.role !== Role.MANAGER) {
-            where.OR = [
-                { assignedToId: user.id },
-                { role: user.role },
-            ];
+            where.assignedToId = user.id;
         }
 
         if (role) where.role = role as Role;
@@ -211,8 +208,8 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
             return;
         }
 
-        // Check permissions
-        if (user.role !== Role.MANAGER && task.assignedToId !== user.id && task.role !== user.role) {
+        // Check permissions: only manager or assignee can view
+        if (user.role !== Role.MANAGER && task.assignedToId !== user.id) {
             res.status(403).json({ error: 'Access denied' });
             return;
         }

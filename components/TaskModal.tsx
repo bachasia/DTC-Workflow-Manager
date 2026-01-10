@@ -1,17 +1,18 @@
 
 import React, { useState } from 'react';
 import { Task, TaskStatus, Staff, UpdateLog, Role } from '../types';
-import { X, Calendar, User, AlignLeft, BarChart2, AlertCircle, History, Clock, UserPlus, MessageSquareWarning, MessageSquareText, Target, UserCheck } from 'lucide-react';
+import { X, Calendar, User, AlignLeft, BarChart2, AlertCircle, History, Clock, UserPlus, MessageSquareWarning, MessageSquareText, Target, UserCheck, Trash2 } from 'lucide-react';
 
 interface TaskModalProps {
   task: Task;
   onClose: () => void;
   onUpdateTask: (updatedTask: Task, logs: UpdateLog[]) => void;
+  onDeleteTask: (taskId: string) => void;
   staffMembers: Staff[];
   currentUser: Staff;
 }
 
-const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staffMembers, currentUser }) => {
+const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, onDeleteTask, staffMembers, currentUser }) => {
   const [localTask, setLocalTask] = useState<Task>(task);
   const [logs, setLogs] = useState<UpdateLog[]>([]);
   const [currentDetails, setCurrentDetails] = useState<string>('');
@@ -106,6 +107,20 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirm(`Are you sure you want to delete "${localTask.title}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await onDeleteTask(task.id);
+      onClose();
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+      alert('Failed to delete task. Please try again.');
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
@@ -150,7 +165,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
                   </div>
                   <div className="flex items-center gap-1.5 p-1 bg-red-50 rounded text-red-600 font-bold">
                     <Clock size={14} />
-                    <span>DL: {new Date(localTask.deadline).toLocaleDateString()}</span>
+                    <span>DL: {new Date(localTask.deadline).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })}</span>
                   </div>
                 </div>
               </section>
@@ -269,8 +284,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
                   </label>
                   <input
                     disabled={!canEditMainFields}
-                    type="date"
-                    value={localTask.deadline.split('T')[0]}
+                    type="datetime-local"
+                    value={localTask.deadline.slice(0, 16)}
                     onChange={handleDeadlineExtension}
                     className="w-full p-3 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-slate-50"
                   />
@@ -301,47 +316,131 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
                   <MessageSquareText size={16} className="text-blue-500" />
                   Chi tiết tiến độ / Khó khăn (Progress Details / Difficulties)
                 </label>
-                <textarea
-                  disabled={!canUpdateProgress}
-                  value={currentDetails}
-                  onChange={(e) => setCurrentDetails(e.target.value)}
-                  placeholder="Cập nhật chi tiết những gì đã làm hoặc khó khăn đang gặp phải..."
-                  className="w-full p-4 bg-blue-50/30 border border-blue-100 rounded-2xl text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-400 min-h-[120px] shadow-inner transition-all placeholder:text-slate-400 disabled:bg-slate-50"
-                />
+                <div className="flex gap-3">
+                  <textarea
+                    disabled={!canUpdateProgress}
+                    value={currentDetails}
+                    onChange={(e) => setCurrentDetails(e.target.value)}
+                    placeholder="Cập nhật chi tiết những gì đã làm hoặc khó khăn đang gặp phải..."
+                    className="flex-1 p-4 bg-blue-50/30 border border-blue-100 rounded-2xl text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-400 min-h-[120px] shadow-inner transition-all placeholder:text-slate-400 disabled:bg-slate-50"
+                  />
+                  {canUpdateProgress && (
+                    <button
+                      onClick={async () => {
+                        if (!currentDetails.trim()) return;
+
+                        const newLog: UpdateLog = {
+                          id: Math.random().toString(36).substr(2, 9),
+                          timestamp: new Date().toISOString(),
+                          field: 'Comment',
+                          oldValue: '-',
+                          newValue: 'Comment Added',
+                          details: currentDetails
+                        };
+
+                        setLogs(prev => [...prev, newLog]);
+
+                        // Post immediately to backend
+                        try {
+                          await onUpdateTask(localTask, [newLog]);
+                          setCurrentDetails(''); // Clear textarea after posting
+                        } catch (error) {
+                          console.error('Failed to post comment:', error);
+                          // Remove the log if posting failed
+                          setLogs(prev => prev.filter(l => l.id !== newLog.id));
+                        }
+                      }}
+                      disabled={!currentDetails.trim()}
+                      className="flex items-center gap-2 px-4 h-fit bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600 whitespace-nowrap py-2"
+                    >
+                      <MessageSquareText size={16} />
+                      Add Comment
+                    </button>
+                  )}
+                </div>
+
+                {/* Comments Section - Display below */}
+                {([...(task.updateLogs || []), ...logs].filter(log => log.field === 'Comment').length > 0) && (
+                  <div className="mt-4 space-y-3">
+                    <h4 className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                      <MessageSquareText size={14} className="text-blue-500" />
+                      Comments ({[...(task.updateLogs || []), ...logs].filter(log => log.field === 'Comment').length})
+                    </h4>
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2" style={{
+                      scrollbarWidth: 'thin',
+                      scrollbarColor: '#cbd5e1 transparent'
+                    }}>
+                      {[...(task.updateLogs || []), ...logs]
+                        .filter(log => log.field === 'Comment')
+                        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                        .map((log) => (
+                          <div key={log.id} className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-bold text-blue-600 uppercase">Comment</span>
+                              <span className="text-xs text-slate-400">
+                                {new Date(log.timestamp).toLocaleString('vi-VN', {
+                                  dateStyle: 'short',
+                                  timeStyle: 'short'
+                                })}
+                              </span>
+                            </div>
+                            <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                              {log.details}
+                            </p>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* History Col */}
-            <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-2xl p-6 border border-slate-200 flex flex-col h-full min-h-[400px] shadow-sm">
+            {/* History Col - Right Sidebar */}
+            <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-2xl p-6 border border-slate-200 flex flex-col shadow-sm">
               <h3 className="flex items-center gap-2 font-bold text-slate-800 mb-5 text-sm pb-3 border-b border-slate-200">
                 <History size={16} className="text-blue-500" />
                 Update History
               </h3>
-              <div className="flex-1 overflow-y-auto space-y-3 max-h-[500px] pr-2" style={{
+              <div className="overflow-y-auto space-y-3 max-h-[400px] pr-2" style={{
                 scrollbarWidth: 'thin',
                 scrollbarColor: '#cbd5e1 transparent'
               }}>
-                {(localTask.history || []).length === 0 ? (
+                {(!task.updateLogs || task.updateLogs.length === 0) && logs.length === 0 ? (
                   <div className="text-center py-12 text-slate-400">
                     <History size={32} className="mx-auto mb-2 opacity-30" />
                     <p className="text-sm font-medium">No update history yet</p>
                   </div>
                 ) : (
-                  [...(localTask.history || [])].reverse().map((log, index) => (
-                    <div key={log.id} className="relative pl-4 border-l-2 border-slate-300 pb-3 last:pb-0 hover:border-blue-400 transition-colors group">
-                      <div className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-blue-500 ring-2 ring-white shadow-sm group-hover:scale-125 transition-transform"></div>
-                      <p className="text-[10px] text-slate-400 mb-1.5 font-medium">{new Date(log.timestamp).toLocaleString()}</p>
-                      <p className="text-xs font-bold text-slate-800 mb-1">{log.field === 'Comment' ? '💬 Note Added' : `📝 Changed ${log.field}`}</p>
-                      <div className="text-[11px] text-slate-600 mb-2 font-medium">
-                        <span className="text-red-600">{log.oldValue}</span> → <span className="text-green-600">{log.newValue}</span>
-                      </div>
-                      {log.details && (
-                        <div className="mt-2 p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
-                          <p className="text-[11px] text-slate-700 leading-relaxed">"{log.details}"</p>
+                  [...(task.updateLogs || []), ...logs]
+                    .filter(log => log.field !== 'Comment') // Exclude comments - they show in comments section
+                    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                    .map((log) => (
+                      <div key={log.id} className="p-3 rounded-xl border bg-white border-slate-100 transition-all">
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                              {log.field}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                            {new Date(log.timestamp).toLocaleString('vi-VN', {
+                              dateStyle: 'short',
+                              timeStyle: 'short'
+                            })}
+                          </span>
                         </div>
-                      )}
-                    </div>
-                  ))
+                        <div>
+                          <p className="text-xs text-slate-600">
+                            <span className="line-through text-slate-400">{log.oldValue.replace(/_/g, ' ')}</span>
+                            {' → '}
+                            <span className="font-bold text-slate-800">{log.newValue.replace(/_/g, ' ')}</span>
+                          </p>
+                          {log.details && (
+                            <p className="text-xs text-slate-500 mt-1 italic">{log.details}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))
                 )}
               </div>
             </div>
@@ -349,13 +448,26 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, staf
         </div>
 
         {/* Footer */}
-        <div className="px-8 py-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/30">
-          <button onClick={onClose} className="px-6 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-all text-sm">Cancel</button>
-          {canUpdateProgress && (
-            <button onClick={handleSave} className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 text-sm">
-              Save & Update
-            </button>
-          )}
+        <div className="px-8 py-6 border-t border-slate-100 flex justify-between bg-slate-50/30">
+          <div>
+            {isManager && (
+              <button
+                onClick={handleDelete}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-red-600 hover:bg-red-50 transition-all text-sm border border-red-200"
+              >
+                <Trash2 size={18} />
+                Delete Task
+              </button>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="px-6 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-all text-sm">Cancel</button>
+            {canUpdateProgress && (
+              <button onClick={handleSave} className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 text-sm">
+                Save & Update
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

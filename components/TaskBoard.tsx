@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Task, TaskStatus, Role, Staff } from '../types';
-import { MoreVertical, Plus, Calendar, AlertCircle, GripVertical } from 'lucide-react';
+import { MoreVertical, Plus, Calendar, AlertCircle, GripVertical, FileText } from 'lucide-react';
 import FilterBar from './FilterBar';
 
 interface TaskBoardProps {
@@ -10,10 +10,11 @@ interface TaskBoardProps {
   staffMembers: Staff[];
   onTaskClick: (task: Task) => void;
   onNewTaskClick: (role: Role) => void;
+  onReportClick: () => void;
   currentUser: Staff;
 }
 
-const TaskBoard: React.FC<TaskBoardProps> = ({ role, tasks, onUpdateStatus, staffMembers, onTaskClick, onNewTaskClick, currentUser }) => {
+const TaskBoard: React.FC<TaskBoardProps> = ({ role, tasks, onUpdateStatus, staffMembers, onTaskClick, onNewTaskClick, onReportClick, currentUser }) => {
   const isManager = currentUser.role === Role.MANAGER;
   const [draggedTaskId, setDraggedTaskId] = React.useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = React.useState<TaskStatus | null>(null);
@@ -151,15 +152,24 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ role, tasks, onUpdateStatus, staf
           <h2 className="text-2xl font-bold text-slate-800">{role} Workflow</h2>
           <p className="text-slate-500">Manage tasks and track production pipeline for {role} team.</p>
         </div>
-        {isManager && (
+        <div className="flex gap-3">
           <button
-            onClick={() => onNewTaskClick(role)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
+            onClick={onReportClick}
+            className="flex items-center gap-2 bg-slate-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-slate-700 transition-colors shadow-lg shadow-slate-200"
           >
-            <Plus size={20} />
-            New Task
+            <FileText size={20} />
+            Report
           </button>
-        )}
+          {isManager && (
+            <button
+              onClick={() => onNewTaskClick(role)}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
+            >
+              <Plus size={20} />
+              New Task
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filter Bar */}
@@ -270,8 +280,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ role, tasks, onUpdateStatus, staf
                         <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between">
                           <div className="flex items-center gap-1.5 text-slate-500">
                             <Calendar size={12} className={task.status === TaskStatus.OVERDUE ? 'text-red-500' : ''} />
-                            <span className={`text-[10px] font-semibold ${task.status === TaskStatus.OVERDUE ? 'text-red-500 font-bold' : ''}`}>
-                              {new Date(task.deadline).toLocaleDateString()}
+                            <span className="text-[9px] font-bold">
+                              {new Date(task.deadline).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })}
                             </span>
                           </div>
                           <div className="flex items-center gap-2">

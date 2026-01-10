@@ -254,6 +254,16 @@ export const api = {
             const response = await makeRequest('/reports/analytics');
             return handleResponse(response);
         },
+        weekly: async (filters?: { userId?: string; startDate?: string; endDate?: string }) => {
+            const params = new URLSearchParams();
+            if (filters?.userId) params.append('userId', filters.userId);
+            if (filters?.startDate) params.append('startDate', filters.startDate);
+            if (filters?.endDate) params.append('endDate', filters.endDate);
+
+            const queryString = params.toString();
+            const response = await makeRequest(`/reports/weekly${queryString ? `?${queryString}` : ''}`);
+            return handleResponse(response);
+        },
     },
 
     // Dashboard

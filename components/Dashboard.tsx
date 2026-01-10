@@ -174,7 +174,7 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks, staffList }) => {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-1.5 text-slate-500">
                             <Calendar size={12} />
-                            <span className="text-xs">{new Date(task.deadline).toLocaleDateString()}</span>
+                            <span className="text-xs">{new Date(task.deadline).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-right">
@@ -310,7 +310,7 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks, staffList }) => {
                       </span>
                     </td>
                     <td className="py-4 text-xs text-slate-500">
-                      {new Date(task.deadline).toLocaleDateString()}
+                      {new Date(task.deadline).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })}
                     </td>
                     <td className="py-4 text-right">
                       <span className={`text-sm font-bold ${task.status === TaskStatus.BLOCKER ? 'text-orange-500' : 'text-blue-600'}`}>{task.progress}%</span>
