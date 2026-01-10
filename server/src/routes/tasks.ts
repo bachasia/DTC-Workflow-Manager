@@ -7,7 +7,8 @@ import { Role, TaskStatus, Priority } from '@prisma/client';
 import {
     sendTaskAssignmentNotification,
     sendStatusChangeNotification,
-    sendTaskBlockedNotification
+    sendTaskBlockedNotification,
+    sendTaskUpdateNotification
 } from '../services/lark/notifications.js';
 
 const router = Router();
@@ -294,6 +295,27 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
         logger.info(`Task updated: ${task.id} by ${user.email}`);
 
+        // Send notification if there are changes
+        if (logs.length > 0) {
+            // Fetch full user details for the notification
+            const updater = await prisma.user.findUnique({
+                where: { id: user.id }
+            });
+
+            if (updater) {
+                sendTaskUpdateNotification(
+                    task as any,
+                    updater,
+                    logs.map(log => ({
+                        field: log.field,
+                        oldValue: log.oldValue,
+                        newValue: log.newValue,
+                        details: log.details
+                    }))
+                ).catch(err => logger.error('Failed to send update notification:', err));
+            }
+        }
+
         res.json({ task });
     } catch (error) {
         if (error instanceof z.ZodError) {
@@ -372,14 +394,32 @@ router.patch('/:id/status', authenticate, async (req: AuthRequest, res: Response
 
         logger.info(`Task status updated: ${task.id} -> ${status} by ${user.email}`);
 
-        // Send Lark notifications based on status change
+        // Send task update notification to manager for all status changes
+        // Fetch full user details for the notification
+        const updater = await prisma.user.findUnique({
+            where: { id: user.id }
+        });
+
+        if (updater && updater.id !== task.createdBy.id) {
+            sendTaskUpdateNotification(
+                task as any,
+                updater,
+                [{
+                    field: 'Status',
+                    oldValue: existingTask.status,
+                    newValue: status,
+                    details: blockerReason || `Updated by ${user.email}`
+                }]
+            ).catch(err => logger.error('Failed to send status update notification:', err));
+        }
+
+        // Also send special Lark notifications for BLOCKER status
         if (status === TaskStatus.BLOCKER) {
-            // Send urgent blocker notification to both assignee and manager
             sendTaskBlockedNotification(task as any).catch((error) => {
                 logger.error('Failed to send task blocked notification:', error);
             });
-        } else {
-            // Send regular status change notification for DONE and other important changes
+        } else if (status === TaskStatus.DONE) {
+            // Send status change notification for DONE (to Lark)
             sendStatusChangeNotification(task as any, existingTask.status, status).catch((error) => {
                 logger.error('Failed to send status change notification:', error);
             });
@@ -443,6 +483,33 @@ router.post('/:id/logs', authenticate, async (req: AuthRequest, res: Response) =
                 details: logData.details || `Updated by ${user.email}`,
             },
         });
+
+        // Send notification for comment/log
+        const fullTask = await prisma.task.findUnique({
+            where: { id },
+            include: { createdBy: true }
+        });
+
+        // Send notification for comment/log
+        if (fullTask) {
+            // Fetch full user details for the notification
+            const updater = await prisma.user.findUnique({
+                where: { id: user.id }
+            });
+
+            if (updater) {
+                sendTaskUpdateNotification(
+                    fullTask,
+                    updater,
+                    [{
+                        field: log.field,
+                        oldValue: log.oldValue,
+                        newValue: log.newValue,
+                        details: log.details
+                    }]
+                ).catch(err => logger.error('Failed to send comment notification:', err));
+            }
+        }
 
         res.status(201).json({ log });
     } catch (error) {

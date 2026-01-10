@@ -154,8 +154,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, onDe
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-6">
+          <div className="flex flex-col lg:block relative gap-8">
+            <div className="lg:w-[calc((100%-2rem)*2/3)] space-y-6">
               <section>
                 <h2 className="text-2xl font-bold text-slate-900 mb-2">{localTask.title}</h2>
                 <div className="flex flex-wrap items-center gap-4 text-slate-500 text-xs">
@@ -188,18 +188,20 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, onDe
                   </label>
 
                   {isManager ? (
-                    <div className="relative group">
-                      <select
-                        value={localTask.assignedTo}
-                        onChange={handleAssigneeChange}
-                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 outline-none hover:border-blue-300 focus:ring-2 focus:ring-blue-500 appearance-none transition-all shadow-sm"
-                      >
-                        {potentialAssignees.map(s => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
-                        ))}
-                      </select>
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-blue-500 group-hover:scale-110 transition-transform">
-                        <UserCheck size={18} />
+                    <div className="group">
+                      <div className="relative">
+                        <select
+                          value={localTask.assignedTo}
+                          onChange={handleAssigneeChange}
+                          className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 outline-none hover:border-blue-300 focus:ring-2 focus:ring-blue-500 appearance-none transition-all shadow-sm"
+                        >
+                          {potentialAssignees.map(s => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
+                        </select>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-blue-500 group-hover:scale-110 transition-transform">
+                          <UserCheck size={18} />
+                        </div>
                       </div>
                       <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 px-1">Manager can reassign</p>
                     </div>
@@ -396,12 +398,12 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, onDe
             </div>
 
             {/* History Col - Right Sidebar */}
-            <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-2xl p-6 border border-slate-200 flex flex-col shadow-sm">
+            <div className="mt-8 lg:mt-0 lg:absolute lg:right-0 lg:top-0 lg:bottom-0 lg:w-[calc((100%-2rem)/3)] bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-2xl p-6 border border-slate-200 flex flex-col shadow-sm h-[500px] lg:h-auto">
               <h3 className="flex items-center gap-2 font-bold text-slate-800 mb-5 text-sm pb-3 border-b border-slate-200">
                 <History size={16} className="text-blue-500" />
                 Update History
               </h3>
-              <div className="overflow-y-auto space-y-3 max-h-[400px] pr-2" style={{
+              <div className="overflow-y-auto space-y-3 flex-1 min-h-0 pr-2" style={{
                 scrollbarWidth: 'thin',
                 scrollbarColor: '#cbd5e1 transparent'
               }}>

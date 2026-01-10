@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   Users,
@@ -14,6 +14,7 @@ import {
   LogOut
 } from 'lucide-react';
 import { Staff, Role } from '../types';
+import NotificationPanel from './NotificationPanel';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -25,6 +26,10 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, onOpenSummary, currentUser, onUserLogout }) => {
+  const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
   const allNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: [Role.MANAGER, Role.DESIGNER, Role.SELLER, Role.CS] },
     { id: 'users', label: 'Staff Management', icon: Settings, roles: [Role.MANAGER] },
@@ -35,6 +40,53 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, on
   ];
 
   const navItems = allNavItems.filter(item => item.roles.includes(currentUser.role));
+
+  // Fetch notifications
+  const fetchNotifications = async () => {
+    try {
+      const token = localStorage.getItem('accessToken'); // Changed from 'token' to 'accessToken'
+
+      const response = await fetch('http://localhost:3001/api/notifications', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data.notifications || []);
+        setUnreadCount(data.unreadCount || 0);
+      } else {
+        console.error('Failed to fetch notifications, status:', response.status);
+      }
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error);
+    }
+  };
+
+  // Fetch notifications on mount
+  useEffect(() => {
+    fetchNotifications();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleMarkAllRead = async () => {
+    try {
+      const token = localStorage.getItem('accessToken'); // Changed from 'token' to 'accessToken'
+      await fetch('http://localhost:3001/api/notifications/read-all', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      setUnreadCount(0);
+      setNotificationPanelOpen(false);
+    } catch (error) {
+      console.error('Failed to mark all as read:', error);
+    }
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -84,7 +136,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, on
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0 relative">
           <div className="flex items-center gap-4 bg-slate-100 px-4 py-2 rounded-lg w-96">
             <Search size={18} className="text-slate-400" />
             <input
@@ -104,14 +156,29 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, on
                 Review Daily
               </button>
             )}
-            <button className="relative p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
+            <button
+              onClick={() => setNotificationPanelOpen(!notificationPanelOpen)}
+              className="relative p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors"
+            >
               <Bell size={20} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] text-center">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </button>
             <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
               <Settings size={20} />
             </button>
           </div>
+
+          {/* Notification Panel */}
+          <NotificationPanel
+            isOpen={notificationPanelOpen}
+            onClose={() => setNotificationPanelOpen(false)}
+            notifications={notifications}
+            onMarkAllRead={handleMarkAllRead}
+          />
         </header>
 
         {/* Content Area */}

@@ -1,20 +1,25 @@
 import * as lark from '@larksuiteoapi/node-sdk';
 import logger from '../../lib/logger.js';
 
-// Initialize Lark client
-const client = new lark.Client({
-    appId: process.env.LARK_APP_ID || '',
-    appSecret: process.env.LARK_APP_SECRET || '',
-    appType: lark.AppType.SelfBuild,
-    domain: lark.Domain.Feishu, // Use Feishu for China, Lark for international
-});
+let client: lark.Client | null = null;
 
 /**
- * Get Lark client instance
+ * Get Lark client instance (Lazy initialization)
  */
 export const getLarkClient = () => {
-    if (!process.env.LARK_APP_ID || !process.env.LARK_APP_SECRET) {
-        logger.warn('Lark credentials not configured');
+    if (!client) {
+        if (!process.env.LARK_APP_ID || !process.env.LARK_APP_SECRET) {
+            logger.warn('Lark credentials not configured');
+        }
+
+        client = new lark.Client({
+            appId: process.env.LARK_APP_ID || '',
+            appSecret: process.env.LARK_APP_SECRET || '',
+            appType: lark.AppType.SelfBuild,
+            domain: lark.Domain.Feishu, // Use Feishu for China, Lark for international
+        });
+
+        logger.info('Lark client initialized');
     }
     return client;
 };
@@ -27,8 +32,10 @@ export const sendMessageToUser = async (
     messageContent: string
 ): Promise<boolean> => {
     try {
+        const larkClient = getLarkClient();
+
         // Get user's open_id by email
-        const userRes = await client.contact.user.batchGetId({
+        const userRes = await larkClient.contact.user.batchGetId({
             data: {
                 emails: [userEmail],
             },
@@ -48,7 +55,7 @@ export const sendMessageToUser = async (
         }
 
         // Send message using open_id type
-        const messageRes = await client.im.message.create({
+        const messageRes = await larkClient.im.message.create({
             params: {
                 receive_id_type: 'open_id',
             },
@@ -82,7 +89,9 @@ export const sendCardMessage = async (
     card: any
 ): Promise<boolean> => {
     try {
-        const userRes = await client.contact.user.batchGetId({
+        const larkClient = getLarkClient();
+
+        const userRes = await larkClient.contact.user.batchGetId({
             data: {
                 emails: [userEmail],
             },
@@ -101,7 +110,7 @@ export const sendCardMessage = async (
             return false;
         }
 
-        const messageRes = await client.im.message.create({
+        const messageRes = await larkClient.im.message.create({
             params: {
                 receive_id_type: 'open_id',
             },
@@ -133,7 +142,9 @@ export const sendMessageToGroup = async (
     messageContent: string
 ): Promise<boolean> => {
     try {
-        const messageRes = await client.im.message.create({
+        const larkClient = getLarkClient();
+
+        const messageRes = await larkClient.im.message.create({
             params: {
                 receive_id_type: 'chat_id',
             },
@@ -159,4 +170,4 @@ export const sendMessageToGroup = async (
     }
 };
 
-export default client;
+export default getLarkClient;

@@ -396,3 +396,127 @@ export const sendTaskBlockedNotification = async (
     }
 };
 
+
+/**
+ * Create task update notification card
+ */
+const createTaskUpdateCard = (task: Task & { createdBy: User }, updater: User, changes: any[]) => {
+    const changeFields = changes.map(change => {
+        let content = `**${change.field}:** ${change.oldValue} ➝ ${change.newValue}`;
+        if (change.field === 'Comment') {
+            content = `**💬 New Comment:**\n${change.details}`;
+        } else if (change.details && change.details !== `Updated by ${updater.email}`) {
+            content += `\n*${change.details}*`;
+        }
+        return {
+            tag: 'div',
+            text: {
+                tag: 'lark_md',
+                content: content,
+            }
+        };
+    });
+
+    return {
+        config: {
+            wide_screen_mode: true,
+        },
+        header: {
+            title: {
+                tag: 'plain_text',
+                content: '📝 Task Updated',
+            },
+            template: 'blue',
+        },
+        elements: [
+            {
+                tag: 'div',
+                text: {
+                    tag: 'lark_md',
+                    content: `**${task.title}**\nUpdated by 👤 ${updater.name}`,
+                },
+            },
+            {
+                tag: 'hr',
+            },
+            ...changeFields,
+            {
+                tag: 'hr',
+            },
+            {
+                tag: 'note',
+                elements: [
+                    {
+                        tag: 'plain_text',
+                        content: `Current Status: ${task.status} | Progress: ${task.progress}%`,
+                    },
+                ],
+            },
+            {
+                tag: 'action',
+                actions: [
+                    {
+                        tag: 'button',
+                        text: {
+                            tag: 'plain_text',
+                            content: 'View Task',
+                        },
+                        url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/`,
+                        type: 'primary',
+                    },
+                ],
+            },
+        ],
+    };
+};
+
+/**
+ * Send task update notification
+ */
+export const sendTaskUpdateNotification = async (
+    task: Task & { createdBy: User },
+    updater: User,
+    changes: any[]
+): Promise<void> => {
+    try {
+        // Don't notify if the updater is the one who created the task (unless testing)
+        // For now, let's allow it for testing purposes, or strictly follow requirement: "employee updates... notify manager"
+        // If updater is manager and manager is creator, maybe skip?
+        // But user said "when employees update... send to manager".
+
+        // If updater is the creator (Manager), we might skip notifications to avoid spamming themselves.
+        if (updater.id === task.createdBy.id) {
+            return;
+        }
+
+        const card = createTaskUpdateCard(task, updater, changes);
+
+        // Send to task creator (Manager)
+        const sent = await sendCardMessage(task.createdBy.email, card);
+
+        // Create detailed message with change information
+        const changesSummary = changes.map(change => {
+            if (change.field === 'Comment') {
+                return `💬 New comment: "${change.details?.substring(0, 50)}${change.details?.length > 50 ? '...' : ''}"`;
+            }
+            return `${change.field}: ${change.oldValue} → ${change.newValue}`;
+        }).join(', ');
+
+        const detailedMessage = `Task "${task.title}" updated by ${updater.name}: ${changesSummary}`;
+
+        await prisma.larkNotification.create({
+            data: {
+                type: NotificationType.STATUS_CHANGED, // Reusing existing type
+                message: detailedMessage,
+                userId: task.createdBy.id,
+                taskId: task.id,
+                sent,
+                sentAt: sent ? new Date() : null,
+            },
+        });
+
+        logger.info(`Task update notification sent for task ${task.id} to ${task.createdBy.email}`);
+    } catch (error) {
+        logger.error('Send task update notification error:', error);
+    }
+};
