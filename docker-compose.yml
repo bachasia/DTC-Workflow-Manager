@@ -58,20 +58,20 @@ services:
         node dist/index.js
       "
 
-  # Frontend with nginx (disabled - using dev server)
-  # frontend:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile.frontend
-  #   container_name: dtc-frontend
-  #   ports:
-  #     - "80:80"
-  #   depends_on:
-  #     backend:
-  #       condition: service_started
-  #   restart: unless-stopped
-  #   networks:
-  #     - dtc-network
+  # Frontend with nginx
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: dtc-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - dtc-network
 
 volumes:
   postgres_data:
