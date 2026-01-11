@@ -14,7 +14,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dtc_user -d dtc_workflow"]
+      test: [ "CMD-SHELL", "pg_isready -U dtc_user -d dtc_workflow" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -40,6 +40,7 @@ services:
       LARK_REPORT_TABLE_ID: ${LARK_REPORT_TABLE_ID}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       CORS_ORIGIN: ${CORS_ORIGIN:-https://task.ngohoan.com}
+      FRONTEND_URL: ${FRONTEND_URL:-https://task.ngohoan.com}
     ports:
       - "3001:3001"
     depends_on:
@@ -75,6 +76,7 @@ services:
 
 volumes:
   postgres_data:
+
 
 networks:
   dtc-network:
