@@ -225,7 +225,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, onDe
                     disabled={!canUpdateProgress}
                     value={localTask.status}
                     onChange={handleStatusChange}
-                    className="w-full p-3 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-slate-700 outline-none transition-all shadow-sm disabled:bg-slate-50 disabled:text-slate-400"
+                    className="w-full p-4 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-slate-700 outline-none transition-all shadow-sm disabled:bg-slate-50 disabled:text-slate-400"
                   >
                     {Object.values(TaskStatus).map(s => (
                       <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>

@@ -17,6 +17,7 @@ model User {
   name      String
   role      Role
   avatar    String?
+  settings  Json?    // User preferences including encrypted API keys
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -122,6 +123,10 @@ model LarkNotification {
   sentAt    DateTime?
   error     String?   @db.Text
   
+  // Read status
+  read      Boolean   @default(false)
+  readAt    DateTime?
+  
   // Scheduling
   scheduledFor DateTime?
   
@@ -131,6 +136,7 @@ model LarkNotification {
   @@index([taskId])
   @@index([sent])
   @@index([scheduledFor])
+  @@index([read])
 }
 
 // Enums

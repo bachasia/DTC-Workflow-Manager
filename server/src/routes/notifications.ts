@@ -17,7 +17,6 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
         const notifications = await prisma.larkNotification.findMany({
             where: {
                 userId: user.id,
-                // Show all notifications, regardless of Lark delivery status
             },
             orderBy: {
                 createdAt: 'desc',
@@ -34,10 +33,11 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
             },
         });
 
-        // Get unread count (all notifications are considered unread for now)
+        // Get unread count (only notifications with read = false)
         const unreadCount = await prisma.larkNotification.count({
             where: {
                 userId: user.id,
+                read: false,
             },
         });
 
@@ -54,7 +54,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
 
 /**
  * PATCH /api/notifications/:id/read
- * Mark notification as read (placeholder - we'll track read status later)
+ * Mark notification as read
  */
 router.patch('/:id/read', authenticate, async (req: AuthRequest, res: Response) => {
     try {
@@ -75,8 +75,15 @@ router.patch('/:id/read', authenticate, async (req: AuthRequest, res: Response) 
             return;
         }
 
-        // For now, we don't have a 'read' field in the schema
-        // This is a placeholder for future implementation
+        // Mark as read
+        await prisma.larkNotification.update({
+            where: { id },
+            data: {
+                read: true,
+                readAt: new Date(),
+            },
+        });
+
         logger.info(`Notification ${id} marked as read by ${user.email}`);
 
         res.json({ success: true });
@@ -94,7 +101,18 @@ router.patch('/read-all', authenticate, async (req: AuthRequest, res: Response) 
     try {
         const user = req.user!;
 
-        // Placeholder for future implementation
+        // Mark all unread notifications as read
+        await prisma.larkNotification.updateMany({
+            where: {
+                userId: user.id,
+                read: false,
+            },
+            data: {
+                read: true,
+                readAt: new Date(),
+            },
+        });
+
         logger.info(`All notifications marked as read for ${user.email}`);
 
         res.json({ success: true });

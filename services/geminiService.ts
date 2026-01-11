@@ -1,21 +1,47 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import { Task, Staff, TaskStatus } from "../types";
+import { api } from "../src/services/api";
 
 
 // Lazy initialization to prevent app crash if API key is missing
 let ai: GoogleGenAI | null = null;
+let currentApiKey: string | null = null;
 
-const getAI = () => {
-  if (!ai) {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY;
+const getAI = async () => {
+  try {
+    // Try to get user's custom API key from settings
+    const settings = await api.settings.get();
+    const userApiKey = settings?.settings?.geminiApiKey;
+
+    // Use user's API key if available, otherwise fall back to environment variable
+    const apiKey = userApiKey || import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY;
+
     if (!apiKey) {
       console.warn('Gemini API key not configured. AI features will be disabled.');
       return null;
     }
-    ai = new GoogleGenAI({ apiKey });
+
+    // Reinitialize if API key changed
+    if (!ai || currentApiKey !== apiKey) {
+      ai = new GoogleGenAI({ apiKey });
+      currentApiKey = apiKey;
+    }
+
+    return ai;
+  } catch (error) {
+    console.error('Failed to initialize Gemini AI:', error);
+    // Fall back to environment variable on error
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return null;
+    }
+    if (!ai || currentApiKey !== apiKey) {
+      ai = new GoogleGenAI({ apiKey });
+      currentApiKey = apiKey;
+    }
+    return ai;
   }
-  return ai;
 };
 
 export interface AnalyticalReport {

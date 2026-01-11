@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Staff, Role } from '../types';
 import NotificationPanel from './NotificationPanel';
+import SettingsModal from './SettingsModal';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -27,6 +28,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, onOpenSummary, currentUser, onUserLogout }) => {
   const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -167,7 +169,10 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, on
                 </span>
               )}
             </button>
-            <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
+            <button
+              onClick={() => setSettingsModalOpen(true)}
+              className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors"
+            >
               <Settings size={20} />
             </button>
           </div>
@@ -186,6 +191,11 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, on
           {children}
         </div>
       </main>
+
+      {/* Settings Modal */}
+      {settingsModalOpen && (
+        <SettingsModal onClose={() => setSettingsModalOpen(false)} />
+      )}
     </div>
   );
 };

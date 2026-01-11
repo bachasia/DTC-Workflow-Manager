@@ -17,6 +17,7 @@ import userRoutes from './routes/users.js';
 import reportRoutes from './routes/reports.js';
 import dashboardRoutes from './routes/dashboard.js';
 import notificationRoutes from './routes/notifications.js';
+import settingsRoutes from './routes/settings.js';
 
 // Load environment variables
 dotenv.config();
@@ -37,8 +38,10 @@ app.use(cors({
 // Rate limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
+    max: process.env.NODE_ENV === 'production' ? 500 : 1000, // Higher limit for development
     message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 app.use('/api/', limiter);
 
@@ -74,6 +77,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

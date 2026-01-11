@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Task, Staff, Role, TaskStatus } from '../types';
-import { X, Download, FileText, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { X, FileText, CheckCircle, Clock, AlertCircle, FileCode, FileSpreadsheet } from 'lucide-react';
 
 interface DailySummaryModalProps {
   tasks: Task[];
@@ -13,35 +13,196 @@ const DailySummaryModal: React.FC<DailySummaryModalProps> = ({ tasks, staffMembe
   const today = new Date().toISOString().split('T')[0];
   const todaysTasks = tasks.filter(t => t.createdAt.startsWith(today) || t.history.some(h => h.timestamp.startsWith(today)));
 
-  const handleExport = () => {
-    // Enhanced headers to include Date, Blocker Reason, and Related Person
-    const headers = ['Date', 'Task', 'Assignee', 'Status', 'Blocker Reason', 'Related Person', 'Progress', 'Priority'];
+  const handleExportCSV = () => {
+    // Prepare CSV data
+    const csvRows = [];
 
-    const rows = todaysTasks.map(t => {
-      const taskDate = new Date(t.createdAt).toLocaleDateString();
-      const assigneeName = staffMembers.find(s => s.id === t.assignedTo)?.name || 'Unknown';
+    // Add header
+    csvRows.push(['Staff Name', 'Role', 'Task Title', 'Status', 'Progress (%)', 'Blocker Reason', 'Related To']);
 
-      return [
-        `"${taskDate}"`,
-        `"${(t.title || '').replace(/"/g, '""')}"`,
-        `"${assigneeName.replace(/"/g, '""')}"`,
-        t.status,
-        `"${(t.blockerReason || '').replace(/"/g, '""')}"`,
-        `"${(t.blockerRelatedTo || '').replace(/"/g, '""')}"`,
-        `${t.progress}%`,
-        t.priority
-      ];
+    // Add data rows
+    staffMembers.filter(s => s.role !== Role.MANAGER).forEach(staff => {
+      const staffTasksToday = todaysTasks.filter(t => t.assignedTo === staff.id);
+
+      staffTasksToday.forEach(task => {
+        csvRows.push([
+          staff.name,
+          staff.role,
+          task.title,
+          task.status,
+          task.progress.toString(),
+          task.blockerReason || '',
+          task.blockerRelatedTo || ''
+        ]);
+      });
     });
 
-    // Added UTF-8 BOM (\uFEFF) to fix Vietnamese characters in Excel
-    const csvContent = "\uFEFF" + headers.join(",") + "\n"
-      + rows.map(e => e.join(",")).join("\n");
+    // Convert to CSV string
+    const csvContent = csvRows.map(row =>
+      row.map(cell => {
+        // Escape quotes and wrap in quotes if contains comma, quote, or newline
+        const cellStr = String(cell);
+        if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+          return `"${cellStr.replace(/"/g, '""')}"`;
+        }
+        return cellStr;
+      }).join(',')
+    ).join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    // Add BOM for UTF-8 to ensure proper encoding in Excel
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `DTC_Team_Report_${today}.csv`);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `DTC_Team_Report_${today}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportHTML = () => {
+    const getStatusBadge = (status: TaskStatus) => {
+      const badges = {
+        [TaskStatus.DONE]: '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; background: #dcfce7; color: #166534; border-radius: 12px; font-size: 11px; font-weight: 700;">✓ DONE</span>',
+        [TaskStatus.BLOCKER]: '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; background: #fed7aa; color: #9a3412; border-radius: 12px; font-size: 11px; font-weight: 700;">⚠ BLOCKER</span>',
+        [TaskStatus.OVERDUE]: '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; background: #fecaca; color: #991b1b; border-radius: 12px; font-size: 11px; font-weight: 700;">⏰ OVERDUE</span>',
+        [TaskStatus.TODO]: '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; background: #dbeafe; color: #1e40af; border-radius: 12px; font-size: 11px; font-weight: 700;">○ TODO</span>',
+        [TaskStatus.IN_PROGRESS]: '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; background: #e0e7ff; color: #3730a3; border-radius: 12px; font-size: 11px; font-weight: 700;">⟳ IN PROGRESS</span>',
+      };
+      return badges[status] || status;
+    };
+
+    const getRoleBadge = (role: Role) => {
+      const badges = {
+        [Role.DESIGNER]: '<span style="padding: 3px 10px; background: #dbeafe; color: #1e40af; border-radius: 8px; font-size: 10px; font-weight: 700; text-transform: uppercase;">DESIGNER</span>',
+        [Role.SELLER]: '<span style="padding: 3px 10px; background: #dcfce7; color: #166534; border-radius: 8px; font-size: 10px; font-weight: 700; text-transform: uppercase;">SELLER</span>',
+        [Role.CS]: '<span style="padding: 3px 10px; background: #fed7aa; color: #9a3412; border-radius: 8px; font-size: 10px; font-weight: 700; text-transform: uppercase;">CS</span>',
+        [Role.MANAGER]: '<span style="padding: 3px 10px; background: #e9d5ff; color: #6b21a8; border-radius: 8px; font-size: 10px; font-weight: 700; text-transform: uppercase;">MANAGER</span>',
+      };
+      return badges[role] || role;
+    };
+
+    let staffSections = '';
+    staffMembers.filter(s => s.role !== Role.MANAGER).forEach(staff => {
+      const staffTasksToday = todaysTasks.filter(t => t.assignedTo === staff.id);
+      if (staffTasksToday.length === 0) return;
+
+      let tasksHTML = '';
+      staffTasksToday.forEach(task => {
+        const blockerSection = task.status === TaskStatus.BLOCKER && task.blockerReason ? `
+          <div style="margin-top: 12px; padding: 12px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px;">
+            <p style="font-size: 10px; font-weight: 700; color: #9a3412; text-transform: uppercase; margin: 0 0 6px 0;">Blocker Reason:</p>
+            <p style="font-size: 13px; color: #1e293b; font-style: italic; margin: 0;">"${task.blockerReason}"</p>
+            ${task.blockerRelatedTo ? `<p style="font-size: 11px; color: #ea580c; margin: 6px 0 0 0; font-weight: 600;">Related: ${task.blockerRelatedTo}</p>` : ''}
+          </div>
+        ` : '';
+
+        tasksHTML += `
+          <div style="padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;">
+              <div style="flex: 1; min-width: 0;">
+                <p style="font-size: 14px; font-weight: 700; color: #1e293b; margin: 0 0 8px 0; word-wrap: break-word;">${task.title}</p>
+                <div style="margin-top: 6px;">
+                  ${getStatusBadge(task.status)}
+                </div>
+              </div>
+              <div style="text-align: right; flex-shrink: 0;">
+                <p style="font-size: 14px; font-weight: 700; color: #0f172a; margin: 0 0 4px 0;">${task.progress}%</p>
+                <div style="width: 80px; height: 6px; background: #cbd5e1; border-radius: 10px; overflow: hidden;">
+                  <div style="height: 100%; background: linear-gradient(90deg, #3b82f6, #2563eb); border-radius: 10px; width: ${task.progress}%;" />
+                </div>
+              </div>
+            </div>
+            ${blockerSection}
+          </div>
+        `;
+      });
+
+      staffSections += `
+        <div style="margin-bottom: 32px; page-break-inside: avoid;">
+          <div style="display: flex; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 2px solid #e2e8f0; margin-bottom: 16px;">
+            <img src="${staff.avatar}" style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid #e2e8f0;" />
+            <h3 style="font-size: 16px; font-weight: 700; color: #1e293b; margin: 0;">${staff.role} [${staff.name}]</h3>
+            ${getRoleBadge(staff.role)}
+          </div>
+          ${tasksHTML}
+        </div>
+      `;
+    });
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DTC Team Report - ${today}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 40px 20px;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+      color: white;
+      padding: 40px;
+      text-align: center;
+    }
+    .header h1 {
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .header p {
+      font-size: 14px;
+      opacity: 0.9;
+      font-weight: 500;
+    }
+    .content {
+      padding: 40px;
+    }
+    @media print {
+      body { background: white; padding: 0; }
+      .container { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📊 Daily Activity Summary</h1>
+      <p>Performance Report for ${today}</p>
+    </div>
+    <div class="content">
+      ${staffSections}
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `DTC_Team_Report_${today}.html`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -61,11 +222,18 @@ const DailySummaryModal: React.FC<DailySummaryModalProps> = ({ tasks, staffMembe
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={handleExport}
+              onClick={handleExportCSV}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-md"
             >
-              <Download size={18} />
-              Export CSV (Fix VN)
+              <FileSpreadsheet size={18} />
+              Export to CSV
+            </button>
+            <button
+              onClick={handleExportHTML}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-md"
+            >
+              <FileCode size={18} />
+              Export to HTML
             </button>
             <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400">
               <X size={20} />

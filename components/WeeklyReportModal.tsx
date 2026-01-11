@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Download, Printer, Calendar, TrendingUp, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { X, Download, Printer, Calendar, TrendingUp, CheckCircle2, Clock, AlertCircle, FileSpreadsheet } from 'lucide-react';
 import { Staff } from '../types';
 import { api } from '../src/services/api';
 
@@ -75,6 +75,96 @@ const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({ onClose, currentU
     useEffect(() => {
         fetchReport();
     }, []);
+
+    const handleExportCSV = () => {
+        if (!report) return;
+
+        const csvRows = [];
+
+        // Add header
+        csvRows.push(['Category', 'Task Title', 'Purpose', 'Priority', 'Status', 'Progress (%)', 'Deadline', 'Blocker Reason', 'Related To']);
+
+        // Add completed tasks
+        report.tasks.completed.forEach(task => {
+            csvRows.push([
+                'Completed',
+                task.title,
+                task.purpose || '',
+                task.priority || '',
+                'DONE',
+                '100',
+                task.deadline ? new Date(task.deadline).toLocaleDateString() : '',
+                '',
+                ''
+            ]);
+        });
+
+        // Add in-progress tasks
+        report.tasks.inProgress.forEach(task => {
+            csvRows.push([
+                'In Progress',
+                task.title,
+                task.purpose || '',
+                task.priority || '',
+                'IN_PROGRESS',
+                task.progress?.toString() || '0',
+                task.deadline ? new Date(task.deadline).toLocaleDateString() : '',
+                '',
+                ''
+            ]);
+        });
+
+        // Add blocked tasks
+        report.tasks.blocked.forEach(task => {
+            csvRows.push([
+                'Blocked',
+                task.title,
+                task.purpose || '',
+                task.priority || '',
+                'BLOCKER',
+                task.progress?.toString() || '0',
+                task.deadline ? new Date(task.deadline).toLocaleDateString() : '',
+                task.blockerReason || '',
+                task.blockerRelatedTo || ''
+            ]);
+        });
+
+        // Add overdue tasks
+        report.tasks.overdue?.forEach(task => {
+            csvRows.push([
+                'Overdue',
+                task.title,
+                task.purpose || '',
+                task.priority || '',
+                'OVERDUE',
+                task.progress?.toString() || '0',
+                task.deadline ? new Date(task.deadline).toLocaleDateString() : '',
+                '',
+                ''
+            ]);
+        });
+
+        // Convert to CSV string
+        const csvContent = csvRows.map(row =>
+            row.map(cell => {
+                const cellStr = String(cell);
+                if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+                    return `"${cellStr.replace(/"/g, '""')}"`;
+                }
+                return cellStr;
+            }).join(',')
+        ).join('\n');
+
+        // Add BOM for UTF-8
+        const BOM = '\uFEFF';
+        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `weekly-report-${report.user.name}-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
 
     const handlePrint = () => {
         window.print();
@@ -458,6 +548,13 @@ const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({ onClose, currentU
                 {/* Footer */}
                 {report && (
                     <div className="px-8 py-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/30 print:hidden">
+                        <button
+                            onClick={handleExportCSV}
+                            className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-green-600 hover:bg-green-50 transition-all text-sm border border-green-200"
+                        >
+                            <FileSpreadsheet size={18} />
+                            Export to CSV
+                        </button>
                         <button
                             onClick={handleDownload}
                             className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-all text-sm"

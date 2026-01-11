@@ -441,8 +441,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                 </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex-1 flex flex-col">
+                <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-250px)]">
                     <table className="w-full">
                         <thead className="bg-slate-50 border-b border-slate-200">
                             <tr>

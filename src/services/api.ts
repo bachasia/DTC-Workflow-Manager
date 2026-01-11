@@ -273,6 +273,21 @@ export const api = {
             return handleResponse(response);
         },
     },
+
+    // Settings
+    settings: {
+        get: async () => {
+            const response = await makeRequest('/settings');
+            return handleResponse(response);
+        },
+        update: async (data: { geminiApiKey?: string }) => {
+            const response = await makeRequest('/settings', {
+                method: 'PATCH',
+                body: JSON.stringify(data),
+            });
+            return handleResponse(response);
+        },
+    },
 };
 
 export default api;
