@@ -451,6 +451,9 @@ const createTaskUpdateCard = (task: Task & { createdBy: User }, updater: User, c
         };
     });
 
+    const isCommentOnly = changes.length === 1 && changes[0].field === 'Comment';
+    const title = isCommentOnly ? '💬 New Comment' : '📝 Task Updated';
+
     return {
         config: {
             wide_screen_mode: true,
@@ -458,9 +461,9 @@ const createTaskUpdateCard = (task: Task & { createdBy: User }, updater: User, c
         header: {
             title: {
                 tag: 'plain_text',
-                content: '📝 Task Updated',
+                content: title,
             },
-            template: 'blue',
+            template: isCommentOnly ? 'blue' : 'blue',
         },
         elements: [
             {

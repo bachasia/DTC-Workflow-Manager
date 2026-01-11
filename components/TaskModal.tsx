@@ -340,16 +340,14 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdateTask, onDe
                           details: currentDetails
                         };
 
-                        setLogs(prev => [...prev, newLog]);
-
                         // Post immediately to backend
                         try {
                           await onUpdateTask(localTask, [newLog]);
                           setCurrentDetails(''); // Clear textarea after posting
+                          // Note: Don't add to logs state - the task will be refetched with the new comment
                         } catch (error) {
                           console.error('Failed to post comment:', error);
-                          // Remove the log if posting failed
-                          setLogs(prev => prev.filter(l => l.id !== newLog.id));
+                          // Show error to user but don't modify logs state
                         }
                       }}
                       disabled={!currentDetails.trim()}

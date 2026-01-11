@@ -165,14 +165,36 @@ const AppContent: React.FC = () => {
 
       console.log('Updating task with payload:', payload);
 
-      const response = await api.tasks.update(updatedTask.id, payload);
+      // 1. Update main task fields
+      const updateResponse = await api.tasks.update(updatedTask.id, payload);
+      let finalTask = updateResponse.task;
+
+      // 2. Handle generic logs (specifically Comments which aren't handled by the main update)
+      const commentLogs = newLogs.filter(log => log.field === 'Comment');
+
+      if (commentLogs.length > 0) {
+        // Send comments sequentially to ensure order
+        for (const log of commentLogs) {
+          await api.tasks.addLog(updatedTask.id, {
+            field: log.field, // Should be 'Comment'
+            oldValue: log.oldValue,
+            newValue: log.newValue,
+            details: log.details
+          });
+        }
+
+        // Refetch task to get the latest history including the new comments
+        // (since api.tasks.update won't return the logs added via api.tasks.addLog)
+        const fetchResponse = await api.tasks.get(updatedTask.id);
+        finalTask = fetchResponse.task;
+      }
 
       // Update local state
       setTasks(prev => prev.map(task =>
-        task.id === updatedTask.id ? response.task : task
+        task.id === updatedTask.id ? finalTask : task
       ));
 
-      setSelectedTask(response.task);
+      setSelectedTask(finalTask);
       toast.success('Task updated successfully!', { id: loadingToast });
     } catch (err: any) {
       console.error('Failed to update task:', err);
