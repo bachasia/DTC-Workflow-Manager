@@ -12,11 +12,11 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Set production API URL to use relative path (proxied by nginx)
-ENV VITE_API_URL=/api
+# Build argument for Vite
+ARG VITE_API_URL=/api
 
-# Build production bundle
-RUN npm run build
+# Build production bundle with environment variable
+RUN VITE_API_URL=${VITE_API_URL} npm run build
 
 # Stage 2: Production with nginx
 FROM nginx:alpine
