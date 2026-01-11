@@ -12,6 +12,9 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Set production API URL to use relative path (proxied by nginx)
+ENV VITE_API_URL=/api
+
 # Build production bundle
 RUN npm run build
 

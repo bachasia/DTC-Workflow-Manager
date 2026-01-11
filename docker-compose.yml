@@ -39,7 +39,7 @@ services:
       LARK_BASE_ID: ${LARK_BASE_ID}
       LARK_REPORT_TABLE_ID: ${LARK_REPORT_TABLE_ID}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
-      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://task.ngohoan.com}
     ports:
       - "3001:3001"
     depends_on:
