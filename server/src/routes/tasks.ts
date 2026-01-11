@@ -286,6 +286,14 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
                         avatar: true,
                     },
                 },
+                createdBy: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        role: true,
+                    },
+                },
                 updateLogs: {
                     orderBy: { timestamp: 'desc' },
                     take: 10,

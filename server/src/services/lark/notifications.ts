@@ -1,7 +1,7 @@
 import prisma from '../../lib/prisma.js';
 import logger from '../../lib/logger.js';
 import { sendMessageToUser, sendCardMessage } from './client.js';
-import { Task, User, NotificationType } from '@prisma/client';
+import { Task, User, NotificationType, Role } from '@prisma/client';
 
 /**
  * Create task assignment notification card
@@ -77,6 +77,20 @@ const createTaskAssignmentCard = (task: Task & { assignedTo: User; createdBy: Us
                     {
                         tag: 'plain_text',
                         content: task.description,
+                    },
+                ],
+            },
+            {
+                tag: 'action',
+                actions: [
+                    {
+                        tag: 'button',
+                        text: {
+                            tag: 'plain_text',
+                            content: 'View Task',
+                        },
+                        url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/?taskId=${task.id}&role=${task.role}`,
+                        type: 'primary',
                     },
                 ],
             },
@@ -337,6 +351,20 @@ const createTaskBlockedCard = (task: Task & { assignedTo: User; createdBy: User 
                     },
                 ],
             },
+            {
+                tag: 'action',
+                actions: [
+                    {
+                        tag: 'button',
+                        text: {
+                            tag: 'plain_text',
+                            content: 'View Task',
+                        },
+                        url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/?taskId=${task.id}&role=${task.role}`,
+                        type: 'primary',
+                    },
+                ],
+            },
         ],
     };
 };
@@ -401,6 +429,12 @@ export const sendTaskBlockedNotification = async (
  * Create task update notification card
  */
 const createTaskUpdateCard = (task: Task & { createdBy: User }, updater: User, changes: any[]) => {
+    const priorityEmoji = {
+        HIGH: '🔴',
+        MEDIUM: '🟡',
+        LOW: '🟢',
+    };
+
     const changeFields = changes.map(change => {
         let content = `**${change.field}:** ${change.oldValue} ➝ ${change.newValue}`;
         if (change.field === 'Comment') {
@@ -439,6 +473,21 @@ const createTaskUpdateCard = (task: Task & { createdBy: User }, updater: User, c
             {
                 tag: 'hr',
             },
+            {
+                tag: 'div',
+                fields: [
+                    {
+                        is_short: true,
+                        text: {
+                            tag: 'lark_md',
+                            content: `**Priority:**\n${priorityEmoji[task.priority]} ${task.priority}`,
+                        },
+                    },
+                ],
+            },
+            {
+                tag: 'hr',
+            },
             ...changeFields,
             {
                 tag: 'hr',
@@ -461,7 +510,7 @@ const createTaskUpdateCard = (task: Task & { createdBy: User }, updater: User, c
                             tag: 'plain_text',
                             content: 'View Task',
                         },
-                        url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/`,
+                        url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/?taskId=${task.id}&role=${task.role}`,
                         type: 'primary',
                     },
                 ],
@@ -471,7 +520,7 @@ const createTaskUpdateCard = (task: Task & { createdBy: User }, updater: User, c
 };
 
 /**
- * Send task update notification
+ * Send task update notification to ALL managers
  */
 export const sendTaskUpdateNotification = async (
     task: Task & { createdBy: User },
@@ -479,20 +528,17 @@ export const sendTaskUpdateNotification = async (
     changes: any[]
 ): Promise<void> => {
     try {
-        // Don't notify if the updater is the one who created the task (unless testing)
-        // For now, let's allow it for testing purposes, or strictly follow requirement: "employee updates... notify manager"
-        // If updater is manager and manager is creator, maybe skip?
-        // But user said "when employees update... send to manager".
+        // Fetch all managers from the database
+        const managers = await prisma.user.findMany({
+            where: { role: Role.MANAGER },
+        });
 
-        // If updater is the creator (Manager), we might skip notifications to avoid spamming themselves.
-        if (updater.id === task.createdBy.id) {
+        if (managers.length === 0) {
+            logger.warn('No managers found to send task update notification');
             return;
         }
 
         const card = createTaskUpdateCard(task, updater, changes);
-
-        // Send to task creator (Manager)
-        const sent = await sendCardMessage(task.createdBy.email, card);
 
         // Create detailed message with change information
         const changesSummary = changes.map(change => {
@@ -504,18 +550,50 @@ export const sendTaskUpdateNotification = async (
 
         const detailedMessage = `Task "${task.title}" updated by ${updater.name}: ${changesSummary}`;
 
-        await prisma.larkNotification.create({
-            data: {
-                type: NotificationType.STATUS_CHANGED, // Reusing existing type
-                message: detailedMessage,
-                userId: task.createdBy.id,
-                taskId: task.id,
-                sent,
-                sentAt: sent ? new Date() : null,
-            },
+        // Send notification to ALL managers
+        const notificationPromises = managers.map(async (manager) => {
+            // Skip sending to the updater if they are a manager (avoid self-notification)
+            if (manager.id === updater.id) {
+                return;
+            }
+
+            try {
+                const sent = await sendCardMessage(manager.email, card);
+
+                // Create notification log for this manager
+                await prisma.larkNotification.create({
+                    data: {
+                        type: NotificationType.STATUS_CHANGED,
+                        message: detailedMessage,
+                        userId: manager.id,
+                        taskId: task.id,
+                        sent,
+                        sentAt: sent ? new Date() : null,
+                    },
+                });
+
+                logger.info(`Task update notification sent for task ${task.id} to manager ${manager.email}`);
+            } catch (error) {
+                logger.error(`Failed to send notification to manager ${manager.email}:`, error);
+
+                // Log failed notification
+                await prisma.larkNotification.create({
+                    data: {
+                        type: NotificationType.STATUS_CHANGED,
+                        message: detailedMessage,
+                        userId: manager.id,
+                        taskId: task.id,
+                        sent: false,
+                        error: String(error),
+                    },
+                });
+            }
         });
 
-        logger.info(`Task update notification sent for task ${task.id} to ${task.createdBy.email}`);
+        // Wait for all notifications to be sent
+        await Promise.all(notificationPromises);
+
+        logger.info(`Task update notifications sent to ${managers.length} manager(s) for task ${task.id}`);
     } catch (error) {
         logger.error('Send task update notification error:', error);
     }

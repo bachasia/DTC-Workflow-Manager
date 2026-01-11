@@ -32,6 +32,15 @@ const refreshSchema = z.object({
     refreshToken: z.string(),
 });
 
+const updateEmailSchema = z.object({
+    email: z.string().email(),
+});
+
+const updatePasswordSchema = z.object({
+    currentPassword: z.string().min(6),
+    newPassword: z.string().min(6),
+});
+
 /**
  * POST /api/auth/login
  * Login with email and password
@@ -200,6 +209,99 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
     } catch (error) {
         logger.error('Get user error:', error);
         res.status(500).json({ error: 'Failed to get user info' });
+    }
+});
+
+/**
+ * PATCH /api/auth/update-email
+ * Update user email
+ */
+router.patch('/update-email', authenticate, async (req: AuthRequest, res: Response) => {
+    try {
+        const { email } = updateEmailSchema.parse(req.body);
+
+        // Check if email is already in use
+        const existingUser = await prisma.user.findUnique({
+            where: { email },
+        });
+
+        if (existingUser && existingUser.id !== req.user!.id) {
+            res.status(409).json({ error: 'Email already in use' });
+            return;
+        }
+
+        // Update user email
+        const updatedUser = await prisma.user.update({
+            where: { id: req.user!.id },
+            data: { email },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                avatar: true,
+                createdAt: true,
+            },
+        });
+
+        logger.info(`User updated email: ${req.user!.email} -> ${email}`);
+
+        res.json({ user: updatedUser });
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            res.status(400).json({ error: 'Invalid email format', details: error.errors });
+            return;
+        }
+        logger.error('Update email error:', error);
+        res.status(500).json({ error: 'Failed to update email' });
+    }
+});
+
+/**
+ * PATCH /api/auth/update-password
+ * Update user password
+ */
+router.patch('/update-password', authenticate, async (req: AuthRequest, res: Response) => {
+    try {
+        const { currentPassword, newPassword } = updatePasswordSchema.parse(req.body);
+
+        // Get user with password
+        const user = await prisma.user.findUnique({
+            where: { id: req.user!.id },
+        });
+
+        if (!user) {
+            res.status(404).json({ error: 'User not found' });
+            return;
+        }
+
+        // Verify current password
+        const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+
+        if (!isValidPassword) {
+            res.status(401).json({ error: 'Current password is incorrect' });
+            return;
+        }
+
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // Update password
+        await prisma.user.update({
+            where: { id: req.user!.id },
+            data: { password: hashedPassword },
+        });
+
+        logger.info(`User updated password: ${user.email}`);
+
+        res.json({ message: 'Password updated successfully' });
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            res.status(400).json({ error: 'Invalid input', details: error.errors });
+            return;
+        }
+        logger.error('Update password error:', error);
+        res.status(500).json({ error: 'Failed to update password' });
     }
 });
 

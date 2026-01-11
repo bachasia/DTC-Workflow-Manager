@@ -126,6 +126,16 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, on
             </div>
           </div>
           <button
+            onClick={() => setActiveView('profile')}
+            className={`w-full flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeView === 'profile'
+              ? 'bg-blue-600 text-white'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+          >
+            <Settings size={14} />
+            My Profile
+          </button>
+          <button
             onClick={onUserLogout}
             className="w-full flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-400 hover:text-white hover:bg-red-500/10 rounded-lg transition-all"
           >
@@ -169,12 +179,14 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, on
                 </span>
               )}
             </button>
-            <button
-              onClick={() => setSettingsModalOpen(true)}
-              className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors"
-            >
-              <Settings size={20} />
-            </button>
+            {currentUser.role === Role.MANAGER && (
+              <button
+                onClick={() => setSettingsModalOpen(true)}
+                className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors"
+              >
+                <Settings size={20} />
+              </button>
+            )}
           </div>
 
           {/* Notification Panel */}

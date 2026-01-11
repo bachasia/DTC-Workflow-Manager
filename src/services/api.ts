@@ -99,6 +99,20 @@ export const api = {
             localStorage.removeItem('refreshToken');
             localStorage.removeItem('user');
         },
+        updateEmail: async (email: string) => {
+            const response = await makeRequest('/auth/update-email', {
+                method: 'PATCH',
+                body: JSON.stringify({ email }),
+            });
+            return handleResponse(response);
+        },
+        updatePassword: async (currentPassword: string, newPassword: string) => {
+            const response = await makeRequest('/auth/update-password', {
+                method: 'PATCH',
+                body: JSON.stringify({ currentPassword, newPassword }),
+            });
+            return handleResponse(response);
+        },
     },
 
     // Tasks

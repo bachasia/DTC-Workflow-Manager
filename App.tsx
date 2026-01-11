@@ -10,6 +10,7 @@ import NewTaskModal from './components/NewTaskModal';
 import WeeklyReportModal from './components/WeeklyReportModal';
 import CSDailyChecklist from './components/CSDailyChecklist';
 import UserManagement from './components/UserManagement';
+import UserProfile from './components/UserProfile';
 import DailySummaryModal from './components/DailySummaryModal';
 import SkeletonLoader from './components/SkeletonLoader';
 import { CS_DAILY_TEMPLATES } from './constants';
@@ -37,6 +38,70 @@ const AppContent: React.FC = () => {
       fetchData();
     }
   }, [user]);
+
+  // Handle URL query parameters for direct task links from notifications
+  useEffect(() => {
+    if (!user || tasks.length === 0) return;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const taskId = urlParams.get('taskId');
+    const role = urlParams.get('role');
+
+    if (taskId) {
+      // Find the task in the current tasks list
+      const task = tasks.find(t => t.id === taskId);
+
+      if (task) {
+        // Navigate to the appropriate board based on role
+        const targetRole = role || task.role;
+        if (targetRole === Role.DESIGNER) {
+          setActiveView('designer');
+        } else if (targetRole === Role.SELLER) {
+          setActiveView('seller');
+        } else if (targetRole === Role.CS) {
+          setActiveView('cs');
+        }
+
+        // Open the task modal after a short delay to ensure board is rendered
+        setTimeout(() => {
+          setSelectedTask(task);
+        }, 100);
+
+        // Clear the URL parameters
+        window.history.replaceState({}, '', window.location.pathname);
+      } else {
+        // Task not found, try to fetch it directly
+        api.tasks.get(taskId)
+          .then(response => {
+            const fetchedTask = response.task;
+
+            // Navigate to the appropriate board
+            const targetRole = role || fetchedTask.role;
+            if (targetRole === Role.DESIGNER) {
+              setActiveView('designer');
+            } else if (targetRole === Role.SELLER) {
+              setActiveView('seller');
+            } else if (targetRole === Role.CS) {
+              setActiveView('cs');
+            }
+
+            // Open the task modal
+            setTimeout(() => {
+              setSelectedTask(fetchedTask);
+            }, 100);
+
+            // Clear the URL parameters
+            window.history.replaceState({}, '', window.location.pathname);
+          })
+          .catch(err => {
+            console.error('Failed to fetch task from URL parameter:', err);
+            toast.error('Task not found');
+            // Clear the URL parameters even on error
+            window.history.replaceState({}, '', window.location.pathname);
+          });
+      }
+    }
+  }, [user, tasks]);
 
   const fetchData = async () => {
     try {
@@ -315,6 +380,8 @@ const AppContent: React.FC = () => {
         return user.role === Role.MANAGER ? <UserManagement currentUser={user} /> : null;
       case 'reports':
         return user.role === Role.MANAGER ? <DailyReporter staffList={staffList} tasks={tasks} /> : null;
+      case 'profile':
+        return <UserProfile />;
       default:
         return <Dashboard tasks={tasks} staffList={staffList} />;
     }
