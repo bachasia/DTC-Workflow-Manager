@@ -48,7 +48,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, on
     try {
       const token = localStorage.getItem('accessToken'); // Changed from 'token' to 'accessToken'
 
-      const response = await fetch('http://localhost:3001/api/notifications', {
+      const response = await fetch('/api/notifications', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -77,7 +77,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, on
   const handleMarkAllRead = async () => {
     try {
       const token = localStorage.getItem('accessToken'); // Changed from 'token' to 'accessToken'
-      await fetch('http://localhost:3001/api/notifications/read-all', {
+      await fetch('/api/notifications/read-all', {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
